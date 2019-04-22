@@ -3,7 +3,8 @@ from DialogueManager.dialogue_config import FAIL, SUCCESS, NO_OUTCOME
 
 class UserSimulator:
     """Simulates a real user, to train the agent with reinforcement learning."""
-
+    end = 'end'
+    default = 'default'
     def __init__(self, constants, ontology):
         """
         The constructor for UserSimulator. Sets dialogue config variables.
@@ -46,8 +47,7 @@ class UserSimulator:
         Returns:
             dict: Initial user response
         """
-        user_response = {'intent': 'default'}
-        return user_response
+        return self._default_response()
 
     def step(self, agent_action):
         """
@@ -74,13 +74,16 @@ class UserSimulator:
             success = FAIL
             user_response = self._end_response()
         else:
-            success = self.update_state(agent_action)
-            if success:
-                user_response = self._end_response()
-            else:
-                agent_intent = agent_action['intent']
-                assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
-                user_response = self.user_responses[agent_intent](agent_action)
+            try:
+                success = self.update_state(agent_action)
+                if success:
+                    user_response = self._end_response()
+                else:
+                    agent_intent = agent_action['intent']
+                    assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
+                    user_response = self.user_responses[agent_intent](agent_action)
+            except Exception:
+                return self._default_response(),-5,False,False
 
         reward = self.reward_function(agent_action, success)
 
@@ -97,10 +100,10 @@ class UserSimulator:
         return NO_OUTCOME
 
     def _default_response(self, agent_action=None):
-        response = {'intent':'default'}
+        response = {'intent':self.default}
         return response
 
     def _end_response(self, agent_action=None):
-        response = {'intent':'end'}
+        response = {'intent':self.end}
         return response
 

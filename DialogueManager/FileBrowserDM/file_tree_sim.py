@@ -23,12 +23,12 @@ class FileTreeSimulator(object):
         self.tree_map = {}
         self.parent_node = BNode()
         self.parent = parent
-        if parent is not None:
-            self.graph = parent.graph
-        else:
-            self.graph = Graph()
-            self.graph.add((self.parent_node, onto.rdf_type, fbrowser.Directory))
-            self.graph.add((self.parent_node, fbrowser.has_name, Literal(name)))
+        # if parent is not None:
+        #     self.graph = parent.graph
+        # else:
+        #     self.graph = Graph()
+        #     self.graph.add((self.parent_node, onto.rdf_type, fbrowser.Directory))
+        #     self.graph.add((self.parent_node, fbrowser.has_name, Literal(name)))
         self.name = name
         if tree is None:
             tree = self.generate_random_tree()
@@ -173,10 +173,9 @@ class FileTreeSimulator(object):
         assert dirs[0] in self.tree_map, path + ' does not exist'
         f, m = self.get_file_by_name(dirs[0])
         for name in dirs[1:]:
-            tree = m['tree_sim'].tree
-            t = m['tree_map']
-            assert name in t, path + ' does not exist'
-            f, m = tree[t[name]]
+            tree = m['tree_sim']
+            assert tree.contains_file(name), path + ' does not exist'
+            f, m = tree.get_file_by_name(name)
         return f, m
 
     def add_to_ontology(self, t, name, m, parent):
@@ -200,11 +199,32 @@ class FileTreeSimulator(object):
                 elif 'tree_sim' in l:
                     m['tree_sim'].addAll_tree(l['tree_sim'].tree())
 
-    def add_file(self, file_name, t, p=None):
+    def create_path(self,path):
+        p = self.path()
+        if path[:len(p)] == p:
+            path = path[len(p):]
+        dirs = path.split('/')
+        if dirs[-1] == '':
+            del dirs[-1]
+        if not len(dirs):
+            return
+        if not self.contains_file(dirs[0]):
+            f,m = self.add_file(dirs[0],DIR)
+        else:
+            f, m = self.get_file_by_name(dirs[0])
+        for name in dirs[1:]:
+            if not m['tree_sim'].contains_file(name):
+                f,m = m['tree_sim'].add_file(name,DIR)
+            else:
+                f,m = m['tree_sim'].get_file_by_name(name)
+
+    def add_file(self, file_name, t, p=None,create_path=False):
         if not p:
             tree_map = self.tree_map
             parent_node = self.parent_node
         else:
+            if create_path:
+                self.create_path(p)
             r = self.get_file_dict_from_path(p)
             if r is None:
                 tree_map = self.tree_map
@@ -216,7 +236,7 @@ class FileTreeSimulator(object):
         file_data = (t, {'tree_sim': FileTreeSimulator([], file_name, self),
                          'name': file_name, 'parent': self})
         tree_map[file_name] = file_data
-        self.add_to_ontology(t, file_name, file_data[1], parent_node)
+        # self.add_to_ontology(t, file_name, file_data[1], parent_node)
         return file_data
 
     def remove_file(self, file_name, p=None):
@@ -235,9 +255,9 @@ class FileTreeSimulator(object):
             return False
         f, m = tree_map[file_name]
         del tree_map[file_name]
-        node = m['node']
-        self.graph.remove((node, None, None))
-        self.graph.remove((None, None, node))
+        # node = m['node']
+        # self.graph.remove((node, None, None))
+        # self.graph.remove((None, None, node))
         return True
 
     def get_file_by_name(self, name):
@@ -330,7 +350,11 @@ if __name__ == '__main__':
     sim1.print_tree()
     sim1_copy.print_tree()
     print(sim1_copy.r_size())
-    # sim1.print_tree()
+    sim1.print_tree()
+    sim1.create_path('lala/lolo/lili')
+    sim1.print_tree()
+    sim1.add_file('newf',1,'lala/haha',True)
+    sim1.print_tree()
     # sim1.print_ontology()
     # sim1.remove_file('my_file')
     # sim1.print_tree()

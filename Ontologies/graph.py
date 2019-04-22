@@ -3,10 +3,10 @@ RDF Graph class
 """
 
 class Graph(object):
-    def __init__(self,triplets:list) -> None:
+    def __init__(self,triplets) -> None:
         """
         graph constructor
-        :param triplets (list): contains 3-tuples subject predicate object as RDF triplets
+        :param triplets: contains 3-tuples subject predicate object as RDF triplets
         """
         super().__init__()
         self.triplets = []
@@ -30,7 +30,7 @@ class Graph(object):
     def _add_edge(self,edge):
         """
         adds edge's URI map to local integer id
-        :param edge (string): URI of the edge
+        :param (str) edge: URI of the edge
         :return:
         """
         if edge not in self.edge_id:
@@ -40,9 +40,9 @@ class Graph(object):
     def add_triplet(self,s,p,o):
         """
         adds triplet to the graph
-        :param s (string): URI of the subject node
-        :param p (string): URI of the predicate edge
-        :param o (string): URI of the object node
+        :param (str) s: URI of the subject node
+        :param (str) p: URI of the predicate edge
+        :param (str) o: URI of the object node
         :return:
         """
         self._add_node(s)
@@ -50,15 +50,22 @@ class Graph(object):
         self._add_edge(p)
         self.id_triplets.append((self.node_id[s], self.edge_id[p], self.node_id[o]))
 
-    def init_triplets(self,triplets:list):
+    def init_triplets(self,triplets):
         """
         creates a graph with list of triplets given in parameters
-        :param triplets (list): list of triplets
+        :param (iterable) triplets: list of triplets
         :return:
         """
         self.triplets = triplets
         for s,p,o in triplets:
             self.add_triplet(s,p,o)
+
+    def add_all(self,triplets):
+        for s,p,o in triplets:
+            self.add_triplet(s,p,o)
+
+    def get_encoded_triplets(self, triplets):
+        return [self.get_encoded_triplet(t) for t in triplets]
 
     def get_encoded_triplet(self,t):
         """
@@ -68,4 +75,12 @@ class Graph(object):
         """
         s,p,o = t
         return self.node_id[s],self.edge_id[p],self.node_id[o]
+
+    def get_encoded_list_nodes(self,nodes):
+        """
+        map triplet URIs to their ids
+        :param t:
+        :return: tuple of integers, id of each URI given in input
+        """
+        return [self.node_id[n] for n in nodes]
 

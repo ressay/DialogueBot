@@ -6,18 +6,30 @@ from rdflib import Graph
 from DialogueManager.FileBrowserDM.file_tree_sim import FileTreeSimulator
 
 
-"""
-Debugging mask
-"""
+
 
 
 class UserSimulatorFB(UserSimulator):
     """Simulates a real user, to train the agent with reinforcement learning."""
+    """
+    Debugging mask
+    """
     CURRENT_TREE = 1
     GOAL_TREE = 2
     SUB_GOALS = 4
     GOAL_DIR = 8
     SIMILARITY = 16
+    """
+    User possible actions
+    """
+    Change_directory_desire = "Change_directory_desire"
+    Delete_file_desire = 'Delete_file_desire'
+    Create_file_desire = 'Create_file_desire'
+    # Create_directory_desire = 'Create_directory_desire'
+    u_inform = 'inform'
+    u_request = 'request'
+    confirm = 'confirm'
+    deny = 'deny'
     def __init__(self, constants, ontology):
         """
         The constructor for UserSimulator. Sets dialogue config variables.
@@ -27,7 +39,7 @@ class UserSimulatorFB(UserSimulator):
             ontology (rdflib.Graph): ontology graph
         """
         super().__init__(constants, ontology)
-        self.agent_tree_actions = ["Create_RegFile", "Create_directory", "Delete_file"]
+        self.agent_tree_actions = ["Create_file",  "Delete_file"]
         for a in self.agent_tree_actions:
             self.user_responses[a] = self._build_response
         self.user_responses['Change_directory'] = self._build_response
@@ -39,8 +51,8 @@ class UserSimulatorFB(UserSimulator):
     def generate_goal(self):
         goal_tree = FileTreeSimulator()
         self.goal = {'goal_tree': goal_tree, 'end_directory': goal_tree.get_random_directory().path(), 'sub_goal': []}
-        print("new goal:")
-        goal_tree.print_tree()
+        # print("new goal:")
+        # goal_tree.print_tree()
         self.generate_next_focused_file()
 
 
@@ -104,18 +116,22 @@ class UserSimulatorFB(UserSimulator):
             success = FAIL
             user_response = self._end_response()
         else:
-            success = self.update_state(agent_action)
-            if success:
-                done = True
-                user_response = self._end_response()
-            else:
-                agent_intent = agent_action['intent']
-                assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
-                user_response = self.user_responses[agent_intent](agent_action)
+            try:
+                success = self.update_state(agent_action)
+                if success:
+                    done = True
+                    user_response = self._end_response()
+                else:
+                    agent_intent = agent_action['intent']
+                    assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
+                    user_response = self.user_responses[agent_intent](agent_action)
+            except Exception as e:
+                print('ERROR HAPPENED AND IGNORING IT: ',e)
+                return self._default_response(), -5, False, False
         self.state['current_uAction'] = user_response
         reward = self.reward_function(agent_action, success)
         self.print_debug()
-        return user_response, reward, done, success
+        return user_response, reward, done, 1 if success == 1 else 0
 
     def reward_function(self, agent_action, success):
         if success:
@@ -128,7 +144,7 @@ class UserSimulatorFB(UserSimulator):
         pf, pt = self.state['previous_similarity']
         if f / t > pf / pt:  # tree similarity got better
             return 1
-        if self.state['current_uAction']['intent'] == 'confirm':  # if confirming an action for agent, reward is neutral
+        if self.state['current_uAction']['intent'] == self.confirm:  # if confirming an action for agent, reward is neutral
             return 0
         return -1
 
@@ -141,10 +157,8 @@ class UserSimulatorFB(UserSimulator):
         """
         intent = agent_action['intent']
         assert intent in self.agent_tree_actions, "trying to apply action that doesn't exist in agent_tree_actions"
-        if intent == 'Create_directory':
-            f_sim.add_file(agent_action['file_name'], 0, agent_action['path'])
-        elif intent == 'Create_RegFile':
-            f_sim.add_file(agent_action['file_name'], 1, agent_action['path'])
+        if intent == 'Create_file':
+            f_sim.add_file(agent_action['file_name'], agent_action['is_file'], agent_action['path'],True)
         elif intent == 'Delete_file':
             f_sim.remove_file(agent_action['file_name'], agent_action['path'])
 
@@ -176,7 +190,7 @@ class UserSimulatorFB(UserSimulator):
         found, total = f_sim.tree_similarity(goal_sim)
         self.state['previous_similarity'] = self.state['current_similarity']
         self.state['current_similarity'] = [found, total]
-        return found == total
+        return 1 if found == total else 0
 
     def generate_next_focused_file(self):
         f_sim = self.state['current_file_tree']
@@ -215,7 +229,7 @@ class UserSimulatorFB(UserSimulator):
             dirs = sub_goal['dirs']
             index = int(random.uniform(0, len(dirs) - 0.01))
             directory = dirs[index].split('/')[-1]
-            return {'intent': 'Change_directory_desire', 'directory': directory}
+            return {'intent': self.Change_directory_desire, 'directory': directory}
         return None
 
     def debug_bitmask(self,bitmask):
@@ -259,7 +273,6 @@ class UserSimulatorFB(UserSimulator):
             """
             def paths(dirs):
                 return ["/".join(dirs[:i+1]) for i in range(len(dirs))]
-            print('DEBUGGING next_dir: ',origin, ' AND ', destination)
             if origin[-1] == '/':
                 origin = origin[:-1]
             if destination[-1] == '/':
@@ -270,7 +283,6 @@ class UserSimulatorFB(UserSimulator):
             origin = origin.split('/')
             destination = destination.split('/')
 
-            print('DEBUGGING next_dir: ', origin, ' AND ', destination)
             if len(origin) > len(destination):
                 return origin[-2], paths(origin)[len(destination)::-1]
 
@@ -291,7 +303,7 @@ class UserSimulatorFB(UserSimulator):
             result = next_dir(self.state['current_directory'], self.goal['end_directory'])
             if result is not None:
                 directory, dirs = result
-                return {'intent': 'Change_directory_desire', 'directory': directory}
+                return {'intent': self.Change_directory_desire, 'directory': directory}
 
         if self.sub_goal_exists():
             return self.generate_sub_goal_intent()
@@ -306,19 +318,20 @@ class UserSimulatorFB(UserSimulator):
             if result is not None:
                 directory, dirs = result
                 self.add_change_directory_sub_goal(dirs)
-                return {'intent': 'Change_directory_desire', 'directory': directory}
+                return {'intent': self.Change_directory_desire, 'directory': directory}
 
+        is_file = 0
         if focused_file['delete']:
-            intent = 'Delete_file_desire'
+            intent = self.Delete_file_desire
         else:
+            intent = self.Create_file_desire
             if focused_file['file']:
-                intent = 'Create_RegFile_desire'
-            else:
-                intent = 'Create_directory_desire'
+                is_file = 1
+
         response = {'intent': intent}
         name = focused_file['map']['name']
         parent_name = focused_file['map']['parent'].name
-        params = {'file_name': name, 'parent_directory': parent_name}
+        params = {'file_name': name, 'parent_directory': parent_name, 'is_file':is_file}
 
         if random.uniform(0, 1) > proba_file:
             del params['file_name']
@@ -341,19 +354,21 @@ class UserSimulatorFB(UserSimulator):
             self.apply_agent_tree_action(asked_action, file_sim_copy)
             f, t = file_sim_copy.tree_similarity(self.goal['goal_tree'])
             pf, pt = self.state['current_similarity']
-            file_sim_copy.print_tree()
+            # file_sim_copy.print_tree()
             # print('DEBUG ASK: COPY:',f,t,' CURRENT SIM: ',pf,pt)
             if f / t > pf / pt:
-                return {'intent': 'confirm'}
+                return {'intent': self.confirm}
         elif asked_action['intent'] == 'Change_directory':
+            if not self.sub_goal_exists():
+                return {'intent': self.deny}
             sub_goal = self.next_sub_goal()
             if sub_goal['name'] == 'Change_directory' \
                     and asked_action['new_directory'] in sub_goal['dirs']:
-                return {'intent': 'confirm'}
-        return {'intent': 'deny'}
+                return {'intent': self.confirm}
+        return {'intent': self.deny}
 
     def _req_response(self, agent_action):
-        response = {'intent': 'inform'}
+        response = {'intent': self.u_inform}
         requested = agent_action['slot']
         focused_file = self.state['focused_file']['map']
         if requested == 'file_name':

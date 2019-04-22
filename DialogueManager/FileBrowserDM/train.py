@@ -24,8 +24,7 @@ if __name__ == "__main__":
     with open(constants_file) as f:
         constants = json.load(f)
 
-    # Load file path constants
-    file_path_dict = constants['db_file_paths']
+
 
     # Load run constants
     run_dict = constants['run']
@@ -39,9 +38,8 @@ if __name__ == "__main__":
 
     # Init. Objects
     user = UserSimulatorFB(constants,fbrowser.graph)
-    user.debug_bitmask(0)
 
-    dqn_agent = AgentFB(1024, constants)
+    dqn_agent = AgentFB(256, constants)
 
 
 def run_round():
@@ -80,26 +78,28 @@ def train_run():
     while episode < NUM_EP_TRAIN:
         episode_reset()
         episode += 1
+        # print('running episode:',episode)
         done = False
         # state = state_tracker.get_state()
         while not done:
             reward, done, success = run_round()
             period_reward_total += reward
 
-
+        # print('success is: ',success)
         period_success_total += success
 
         # Train
         if episode % TRAIN_FREQ == 0:
+
             # Check success rate
             success_rate = period_success_total / TRAIN_FREQ
             avg_reward = period_reward_total / TRAIN_FREQ
-            # Flush
-            if success_rate >= success_rate_best and success_rate >= SUCCESS_RATE_THRESHOLD:
-                dqn_agent.empty_memory()
+            print('training after getting success_rate:', success_rate, " and avg_reward: ",avg_reward)
+
+
             # Update current best success rate
             if success_rate > success_rate_best:
-                print('Episode: {} NEW BEST SUCCESS RATE: {} Avg Reward: {}' .format(episode, success_rate, avg_reward))
+                # print('Episode: {} NEW BEST SUCCESS RATE: {} Avg Reward: {}' .format(episode, success_rate, avg_reward))
                 success_rate_best = success_rate
                 dqn_agent.save_weights()
             period_success_total = 0
@@ -108,6 +108,9 @@ def train_run():
             dqn_agent.copy()
             # Train
             dqn_agent.train()
+            # Flush
+            if success_rate >= success_rate_best and success_rate >= SUCCESS_RATE_THRESHOLD:
+                dqn_agent.empty_memory()
     print('...Training Ended')
 
 

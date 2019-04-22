@@ -24,6 +24,12 @@
                rdfs:range :Directory .
 
 
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#confirm
+:confirm rdf:type owl:ObjectProperty ;
+         rdfs:domain :User ;
+         rdfs:range :Agent_action .
+
+
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_act
 :contains_act rdf:type owl:ObjectProperty ;
               rdfs:domain :Dialogue ;
@@ -34,6 +40,12 @@
 :contains_file rdf:type owl:ObjectProperty ;
                rdfs:domain :Directory ;
                rdfs:range :File .
+
+
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#deny
+:deny rdf:type owl:ObjectProperty ;
+      rdfs:domain :User ;
+      rdfs:range :Agent_action .
 
 
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_desire
@@ -120,14 +132,9 @@
                   rdfs:subClassOf :Agent_action .
 
 
-###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Create_RegFile
-:Create_RegFile rdf:type owl:Class ;
-                rdfs:subClassOf :Agent_action .
-
-
-###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Create_directory
-:Create_directory rdf:type owl:Class ;
-                  rdfs:subClassOf :Agent_action .
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Create_file
+:Create_file rdf:type owl:Class ;
+             rdfs:subClassOf :Agent_action .
 
 
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Delete_file
@@ -157,14 +164,9 @@
       rdfs:subClassOf :Act_parameter .
 
 
-###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Open_RegFile
-:Open_RegFile rdf:type owl:Class ;
-              rdfs:subClassOf :Agent_action .
-
-
-###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Open_directory
-:Open_directory rdf:type owl:Class ;
-                rdfs:subClassOf :Agent_action .
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Open_file
+:Open_file rdf:type owl:Class ;
+           rdfs:subClassOf :Agent_action .
 
 
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#RegFile
