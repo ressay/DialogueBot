@@ -377,13 +377,19 @@ class Agent(object):
 
         # K.clear_session()
         # Calc. num of batches to run
-        num_batches = len(self.memory) // self.batch_size
+        train_by_batch = False
+        if train_by_batch:
+            num_batches = len(self.memory) // self.batch_size
+            train_gen = self.training_generator_by_batch
+        else:
+            num_batches = len(self.memory)
+            train_gen = self.training_generator
         # self.beh_model._make_predict_function()
         del self.get_state_output
         del self.get_state_and_action
         self.beh_model._make_predict_function()
         self.tar_model._make_predict_function()
-        self.beh_model.fit_generator(self.training_generator(), epochs=1,
+        self.beh_model.fit_generator(train_gen(), epochs=1,
                                      verbose=1,steps_per_epoch=num_batches)
         self.get_state_output = self._build_state_model(self.beh_model)
         self.get_state_and_action = self._built_state_action_model(self.beh_model)
