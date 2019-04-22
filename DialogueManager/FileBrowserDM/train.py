@@ -64,12 +64,9 @@ def run_round():
 def train_run():
     """
     Runs the loop that trains the agent.
-
     Trains the agent on the goal-oriented chatbot task. Training of the agent's neural network occurs every episode that
     TRAIN_FREQ is a multiple of. Terminates when the episode reaches NUM_EP_TRAIN.
-
     """
-
     print('Training Started...')
     episode = 0
     period_reward_total = 0
@@ -96,7 +93,6 @@ def train_run():
             avg_reward = period_reward_total / TRAIN_FREQ
             print('training after getting success_rate:', success_rate, " and avg_reward: ",avg_reward)
 
-
             # Update current best success rate
             if success_rate > success_rate_best:
                 # print('Episode: {} NEW BEST SUCCESS RATE: {} Avg Reward: {}' .format(episode, success_rate, avg_reward))
@@ -117,20 +113,9 @@ def train_run():
 def episode_reset():
     """
     Resets the episode/conversation in the warmup and training loops.
-
     Called in warmup and train to reset the state tracker, user and agent. Also get's the initial user action.
-
     """
-
-    # First reset the state tracker
-    # state_tracker.reset()
-    # Then pick an init user action
     user_action = user.reset()
-    # Infuse with error
-    # emc.infuse_error(user_action)
-    # And update state tracker
-    # state_tracker.update_state_user(user_action)
-    # Finally, reset agent
     dqn_agent.reset(user_action)
 
 

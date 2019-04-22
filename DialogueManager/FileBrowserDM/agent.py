@@ -1,5 +1,4 @@
 import json
-
 from DialogueManager.FileBrowserDM.state_tracker import StateTrackerFB
 from DialogueManager.agent import Agent
 import Ontologies.onto_fbrowser as fbrowser

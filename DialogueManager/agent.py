@@ -99,7 +99,7 @@ class Agent(object):
             output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
         concat = Concatenate()([encoder_state_repeated, DQN_inputs])
 
-        outputs = TimeDistributed(DQN_unit([hidden_state]),name='distributed'+name_pre)(concat)
+        outputs = TimeDistributed(DQN_unit([hidden_state,hidden_state,hidden_state]),name='distributed'+name_pre)(concat)
 
         model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
         model.compile('rmsprop', loss='mse')
@@ -383,8 +383,8 @@ class Agent(object):
         del self.get_state_and_action
         self.beh_model._make_predict_function()
         self.tar_model._make_predict_function()
-        self.beh_model.fit_generator(self.training_generator_by_batch(), epochs=1,
-                                     verbose=2,steps_per_epoch=num_batches)
+        self.beh_model.fit_generator(self.training_generator(), epochs=1,
+                                     verbose=1,steps_per_epoch=num_batches)
         self.get_state_output = self._build_state_model(self.beh_model)
         self.get_state_and_action = self._built_state_action_model(self.beh_model)
         # K.clear_session()
