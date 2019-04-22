@@ -16,7 +16,7 @@
     "dqn_hidden_size": 80,
     "epsilon_init": 0.0,
     "gamma": 0.9,
-    "max_mem_size": 500000,
+    "max_mem_size": 2000,
     "agent_actions": ["Create_file","Delete_file","Change_directory",
       "inform","ask","request"]
   },
