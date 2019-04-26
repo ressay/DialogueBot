@@ -5,7 +5,7 @@
     "num_ep_run": 40000,
     "train_freq": 300,
     "max_round_num": 20,
-    "success_rate_threshold": 0.5
+    "success_rate_threshold": 0.3
   },
   "agent": {
     "save_weights_file_path": "my_weights/m",

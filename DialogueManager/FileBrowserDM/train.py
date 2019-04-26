@@ -25,7 +25,6 @@ if __name__ == "__main__":
         constants = json.load(f)
 
 
-
     # Load run constants
     run_dict = constants['run']
     USE_USERSIM = run_dict['usersim']

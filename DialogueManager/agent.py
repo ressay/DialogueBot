@@ -2,25 +2,31 @@ import random, copy
 import re
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
-
+import math
 from DialogueManager.state_tracker import StateTracker
 from keras.layers import Input, GRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
 
+
 class Agent(object):
-    def __init__(self, state_size, constants) -> None:
+    def __init__(self, state_size, constants, train_by_batch=True) -> None:
         super().__init__()
 
         self.C = constants['agent']
         self.memory = []
         self.memory_index = 0
+        self.memory_map = {}
+        self.memory_pairs = []
+        self.index_map = []
         self.max_memory_size = self.C['max_mem_size']
         self.eps = self.C['epsilon_init']
         self.gamma = self.C['gamma']
         self.vanilla = self.C['vanilla']
         self.batch_size = self.C['batch_size']
+        self.train_by_batch = train_by_batch
+        self.samples_trained = 0
 
         self.load_weights_file_path = self.C['load_weights_file_path']
         self.save_weights_file_path = self.C['save_weights_file_path']
@@ -47,48 +53,49 @@ class Agent(object):
 
         # self._load_weights()
 
-    def _build_state_model(self,model,name_pre="_beh"):
-        encoder_inputs = model.get_layer('encoder_inputs'+name_pre)
-        encoder_state_input = model.get_layer('encoder_state_input'+name_pre)
-        gru_layer = model.get_layer('gru_layer'+name_pre)
+    def _build_state_model(self, model, name_pre="_beh"):
+        encoder_inputs = model.get_layer('encoder_inputs' + name_pre)
+        encoder_state_input = model.get_layer('encoder_state_input' + name_pre)
+        gru_layer = model.get_layer('gru_layer' + name_pre)
         input1 = encoder_inputs.input
         input2 = encoder_state_input.input
         output = gru_layer.output[1]
         return K.function([input1, input2], [output])
 
-    def _built_state_action_model(self,model,name_pre="_beh"):
-        encoder_inputs = model.get_layer('encoder_inputs'+name_pre)
-        encoder_state_input = model.get_layer('encoder_state_input'+name_pre)
-        dqn_inputs = model.get_layer('dqn_inputs'+name_pre)
-        gru_layer = model.get_layer('gru_layer'+name_pre)
-        output_layer = model.get_layer('distributed'+name_pre)
+    def _built_state_action_model(self, model, name_pre="_beh"):
+        encoder_inputs = model.get_layer('encoder_inputs' + name_pre)
+        encoder_state_input = model.get_layer('encoder_state_input' + name_pre)
+        dqn_inputs = model.get_layer('dqn_inputs' + name_pre)
+        gru_layer = model.get_layer('gru_layer' + name_pre)
+        output_layer = model.get_layer('distributed' + name_pre)
         input1 = encoder_inputs.input
         input2 = encoder_state_input.input
         input3 = dqn_inputs.input
         output1 = gru_layer.output[1]
         output2 = output_layer.output
-        return K.function([input1, input2, input3], [output1,output2])
+        return K.function([input1, input2, input3], [output1, output2])
 
-    def _build_model(self,name_pre=''):
+    def _build_model(self, name_pre=''):
         triplet_size = self.state_tracker.triplet_size
         action_size = self.state_tracker.get_action_size()
         hidden_state = self.state_size
         output_dim = 2
-        encoder_inputs = Input(shape=(None, triplet_size),name='encoder_inputs'+name_pre)
-        encoder_state_input = Input(shape=(hidden_state,),name='encoder_state_input'+name_pre)
+        encoder_inputs = Input(shape=(None, triplet_size), name='encoder_inputs' + name_pre)
+        encoder_state_input = Input(shape=(hidden_state,), name='encoder_state_input' + name_pre)
         # DQN_input = Input(shape=(triplet_size,))
-        DQN_inputs = Input(shape=(None, action_size),name='dqn_inputs'+name_pre)
+        DQN_inputs = Input(shape=(None, action_size), name='dqn_inputs' + name_pre)
         _, encoder_state = GRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
-                               name='gru_layer'+name_pre)(encoder_inputs, initial_state=encoder_state_input)
+                               name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
+
         def DQN_unit(layers):
-            DQN_input = Input(shape=(action_size+hidden_state,))
-            output = Dense(layers[0],activation='relu')(DQN_input)
+            DQN_input = Input(shape=(action_size + hidden_state,))
+            output = Dense(layers[0], activation='relu')(DQN_input)
             for layer in layers[1:]:
-                output = Dense(layer,activation='relu')(output)
-            output = Dense(output_dim,activation='linear',name='output_layer')(output)
-            return Model(DQN_input,output,name='DQN_unit'+name_pre)
+                output = Dense(layer, activation='relu')(output)
+            output = Dense(output_dim, activation='linear', name='output_layer')(output)
+            return Model(DQN_input, output, name='DQN_unit' + name_pre)
 
         def repeat_vector(args):
             layer_to_repeat = args[0]
@@ -96,17 +103,18 @@ class Agent(object):
             return RepeatVector(K.shape(sequence_layer)[1])(layer_to_repeat)
 
         encoder_state_repeated = Lambda(repeat_vector,
-            output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
+                                        output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
         concat = Concatenate()([encoder_state_repeated, DQN_inputs])
 
-        outputs = TimeDistributed(DQN_unit([hidden_state,hidden_state,hidden_state]),name='distributed'+name_pre)(concat)
+        outputs = TimeDistributed(DQN_unit([hidden_state, hidden_state, hidden_state]), name='distributed' + name_pre)(
+            concat)
 
         model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
         model.compile('rmsprop', loss='mse')
         # model.summary()
         return model
 
-    def reset(self,user_action):
+    def reset(self, user_action):
         """
         resets the agent with start user action
         :param user_action:
@@ -114,7 +122,6 @@ class Agent(object):
         """
         self.state_tracker = self.init_state_tracker()
         self.update_state_user_action(user_action)
-
 
     def get_state(self):
         """
@@ -126,7 +133,7 @@ class Agent(object):
         states = [self.graph_encoding.copy(), new_triplets, self.current_actions_vector.copy()]
         return states
 
-    def update_state_user_action(self,user_action):
+    def update_state_user_action(self, user_action):
         """
         updates the state tracker: the knowledge graph, hence new action possibilities
         :param user_action:
@@ -144,7 +151,7 @@ class Agent(object):
         # action_index, action = self.get_action(states)
         # self.graph_encoding = self._predict_state(states)
         self.graph_encoding, action_index, action = self._predict_state_action(states)
-        self.state_tracker.update_state_agent_action(action,update_encoding=False)
+        self.state_tracker.update_state_agent_action(action, update_encoding=False)
         return action_index, action
 
     def get_action(self, states=None):
@@ -218,9 +225,9 @@ class Agent(object):
             state, new_triplets, possible_actions = [pad_sequences(np.array([s[S] for s in states])) for S in range(3)]
 
         if target:
-            result = self.tar_model.predict([new_triplets,state,possible_actions])
+            result = self.tar_model.predict([new_triplets, state, possible_actions])
         else:
-            result = self.beh_model.predict([new_triplets,state,possible_actions])
+            result = self.beh_model.predict([new_triplets, state, possible_actions])
         # flatten each sample of the batch
         result = np.array([sample.flatten() for sample in result])
         return result
@@ -243,11 +250,11 @@ class Agent(object):
         # else:
         #     return self.beh_model.predict([new_triplets,state,possible_actions])[1].flatten()
 
-        return self.get_state_output([new_triplets,state])[0][0]
+        return self.get_state_output([new_triplets, state])[0][0]
 
-    def _predict_state_action(self,states,random_gen=True):
+    def _predict_state_action(self, states, random_gen=True):
         state, new_triplets, possible_actions = [np.array([s]) for s in states]
-        new_state,action = self.get_state_and_action([new_triplets,state,possible_actions])
+        new_state, action = self.get_state_and_action([new_triplets, state, possible_actions])
         new_state = new_state[0]
         if random_gen and self.eps > random.random():
             index = random.randint(0, len(self.current_possible_actions) - 1)
@@ -256,7 +263,7 @@ class Agent(object):
             action = action[0].flatten()
             index = np.argmax(action)
         action = self.current_possible_actions[index]
-        return new_state,index,action
+        return new_state, index, action
 
     def add_experience(self, state, action, reward, next_state, done):
         """
@@ -270,9 +277,22 @@ class Agent(object):
             done (bool)
 
         """
+        st, tr, ac = state
+        pair = len(tr), len(ac)
+        if pair not in self.memory_map:
+            self.memory_map[pair] = []
+            self.memory_pairs.append(pair)
+        self.memory_map[pair].append((state, action, reward, next_state, done))
 
         if len(self.memory) < self.max_memory_size:
             self.memory.append(None)
+            self.index_map.append(None)
+        else:
+            p, i = self.index_map[self.memory_index]
+            del self.memory_map[p][i]
+            if len(self.memory_map[p]) == 0:
+                del self.memory_map[p]
+        self.index_map[self.memory_index] = pair, len(self.memory_map[pair]) - 1
         self.memory[self.memory_index] = (state, action, reward, next_state, done)
         self.memory_index = (self.memory_index + 1) % self.max_memory_size
 
@@ -288,6 +308,7 @@ class Agent(object):
         return len(self.memory) == self.max_memory_size
 
     def training_generator(self):
+        self.samples_trained = 0
         while True:
             batch = random.sample(self.memory, 1)[0]
 
@@ -300,7 +321,8 @@ class Agent(object):
             beh_state_preds = self._dqn_predict_action(states)  # For leveling error
             if not self.vanilla:
                 beh_next_states_preds = self._dqn_predict_action(next_states)  # For indexing for DDQN
-            tar_next_state_preds = self._dqn_predict_action(next_states, target=True)  # For target value for DQN (& DDQN)
+            tar_next_state_preds = self._dqn_predict_action(next_states,
+                                                            target=True)  # For target value for DQN (& DDQN)
 
             # inputs = np.zeros((self.batch_size, self.state_size))
             # targets = np.zeros((self.batch_size, self.num_actions))
@@ -313,20 +335,27 @@ class Agent(object):
             else:
                 t[a] = r + self.gamma * np.amax(tar_next_state_preds[0]) * (not d)
 
-            st,tr,ac = s
+            st, tr, ac = s
             input_tr = np.array([tr])
             input_st = np.array([st])
             # target_st = np.array([s_[0]])
             input_ac = np.array([ac])
-            targets = np.array([np.array([np.array((t[i],t[i+1])) for i in range(0,len(t),2)])])
+            targets = np.array([np.array([np.array((t[i], t[i + 1])) for i in range(0, len(t), 2)])])
+            self.samples_trained += len(targets)
             # print(input_tr.shape,input_st.shape,input_ac.shape)
-            yield [input_tr,input_st,input_ac], targets
+            yield [input_tr, input_st, input_ac], targets
 
-    def training_generator_by_batch(self):
+    def training_generator_by_batch(self, with_padding=False):
+        self.samples_trained = 0
         while True:
-            batch = random.sample(self.memory, self.batch_size)
-            if len(batch) != self.batch_size:
-                print('problem in len batch: ', len(batch))
+            if with_padding:
+                memory = self.memory
+            else:
+                memory = self.memory_map[random.choice(self.memory_pairs)]
+            batch_size = self.batch_size if len(memory) >= self.batch_size else len(memory)
+            batch = random.sample(memory, batch_size)
+            # if len(batch) != self.batch_size:
+            #     print('problem in len batch: ', len(batch))
 
             states = [sample[0] for sample in batch]
             next_states = [sample[3] for sample in batch]
@@ -334,10 +363,11 @@ class Agent(object):
             # assert states.shape == (self.batch_size, self.state_size), 'States Shape: {}'.format(states.shape)
             # assert next_states.shape == states.shape
 
-            beh_state_preds = self._dqn_predict_action(states,one=False)  # For leveling error
+            beh_state_preds = self._dqn_predict_action(states, one=False)  # For leveling error
             if not self.vanilla:
-                beh_next_states_preds = self._dqn_predict_action(next_states,one=False)  # For indexing for DDQN
-            tar_next_state_preds = self._dqn_predict_action(next_states, target=True,one=False)  # For target value for DQN (& DDQN)
+                beh_next_states_preds = self._dqn_predict_action(next_states, one=False)  # For indexing for DDQN
+            tar_next_state_preds = self._dqn_predict_action(next_states, target=True,
+                                                            one=False)  # For target value for DQN (& DDQN)
 
             # inputs = np.zeros((self.batch_size, self.state_size))
             # targets = np.zeros((self.batch_size, self.num_actions))
@@ -348,7 +378,7 @@ class Agent(object):
             input_ac = []
             targets = []
 
-            for i,sample in enumerate(batch):
+            for i, sample in enumerate(batch):
                 (s, a, r, s_, d) = sample
                 t = beh_state_preds[i]
                 if not self.vanilla:
@@ -356,15 +386,22 @@ class Agent(object):
                 else:
                     t[a] = r + self.gamma * np.amax(tar_next_state_preds[i]) * (not d)
 
-                st,tr,ac = s
+                st, tr, ac = s
                 input_tr.append(tr)
                 input_st.append(st)
                 input_ac.append(ac)
-                targets.append(np.array([np.array((t[i],t[i+1])) for i in range(0,len(t),2)]))
+                targets.append(np.array([np.array((t[i], t[i + 1])) for i in range(0, len(t), 2)]))
             # print(input_tr.shape,input_st.shape,input_ac.shape)
             input_st, input_ac, targets = [np.array(a)
-                                                     for a in [ input_st, input_ac, targets]]
-            yield [pad_sequences(input_tr),input_st,pad_sequences(input_ac)], pad_sequences(targets)
+                                           for a in [input_st, input_ac, targets]]
+            if with_padding:
+                input_tr = pad_sequences(input_tr)
+                input_ac = pad_sequences(input_ac)
+                targets = pad_sequences(targets)
+            else:
+                input_tr = np.array(input_tr)
+            self.samples_trained += len(targets)
+            yield [input_tr, input_st, input_ac], targets
 
     def train(self):
         """
@@ -375,11 +412,14 @@ class Agent(object):
 
         """
 
+        def mean(numbers):
+            return float(sum(numbers)) / max(len(numbers), 1)
         # K.clear_session()
         # Calc. num of batches to run
-        train_by_batch = False
-        if train_by_batch:
-            num_batches = len(self.memory) // self.batch_size
+        if self.train_by_batch:
+            av = mean([len(v) for v in self.memory_map.values()])
+            bs = self.batch_size if self.batch_size < av else av
+            num_batches = len(self.memory) // bs
             train_gen = self.training_generator_by_batch
         else:
             num_batches = len(self.memory)
@@ -390,17 +430,16 @@ class Agent(object):
         self.beh_model._make_predict_function()
         self.tar_model._make_predict_function()
         self.beh_model.fit_generator(train_gen(), epochs=1,
-                                     verbose=1,steps_per_epoch=num_batches)
+                                     verbose=1, steps_per_epoch=num_batches)
         self.get_state_output = self._build_state_model(self.beh_model)
         self.get_state_and_action = self._built_state_action_model(self.beh_model)
         # K.clear_session()
-        print('finished fitting')
+        print('finished fitting on ', self.samples_trained, ' samples')
 
     def copy(self):
         """Copies the behavior model's weights into the target model's weights."""
 
         self.tar_model.set_weights(self.beh_model.get_weights())
-
 
     def save_weights(self):
         """Saves the weights of both models in two h5 files."""
@@ -411,7 +450,6 @@ class Agent(object):
         self.beh_model.save_weights(beh_save_file_path)
         tar_save_file_path = re.sub(r'\.h5', r'_tar.h5', self.save_weights_file_path)
         self.tar_model.save_weights(tar_save_file_path)
-
 
     def _load_weights(self):
         """Loads the weights of both models from two h5 files."""
@@ -424,7 +462,8 @@ class Agent(object):
         self.tar_model.load_weights(tar_load_file_path)
 
     def init_state_tracker(self):
-        return StateTracker(1024,fbrowser.graph)
+        return StateTracker(1024, fbrowser.graph)
+
 
 if __name__ == '__main__':
-    array = [[1,2],[2,3],[4,5]]
+    array = [[1, 2], [2, 3], [4, 5]]
