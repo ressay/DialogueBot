@@ -294,9 +294,9 @@ class Agent(object):
             del self.memory_map[p][i]
             if len(self.memory_map[p]) == 0:
                 del self.memory_map[p]
+                self.memory_pairs.remove(p)
         self.index_map[self.memory_index] = pair, ind
         self.memory[self.memory_index] = (state, action, reward, next_state, done)
-        self.memory_pairs[self.memory_index] = pair
         self.memory_index = (self.memory_index + 1) % self.max_memory_size
 
     def empty_memory(self):
