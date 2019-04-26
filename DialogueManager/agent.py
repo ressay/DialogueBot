@@ -11,7 +11,7 @@ import keras.backend as K
 
 
 class Agent(object):
-    def __init__(self, state_size, constants, train_by_batch=True) -> None:
+    def __init__(self, state_size, constants, train_by_batch=True,use_multiprocessing=True) -> None:
         super().__init__()
 
         self.C = constants['agent']
@@ -27,6 +27,7 @@ class Agent(object):
         self.batch_size = self.C['batch_size']
         self.train_by_batch = train_by_batch
         self.samples_trained = 0
+        self.multiprocessing = use_multiprocessing
 
         self.load_weights_file_path = self.C['load_weights_file_path']
         self.save_weights_file_path = self.C['save_weights_file_path']
@@ -280,9 +281,10 @@ class Agent(object):
         st, tr, ac = state
         pair = len(tr), len(ac)
         if pair not in self.memory_map:
-            self.memory_map[pair] = []
+            self.memory_map[pair] = {}
             self.memory_pairs.append(pair)
-        self.memory_map[pair].append((state, action, reward, next_state, done))
+        ind = len(self.memory_map[pair])
+        self.memory_map[pair][ind] = (state, action, reward, next_state, done)
 
         if len(self.memory) < self.max_memory_size:
             self.memory.append(None)
@@ -292,7 +294,7 @@ class Agent(object):
             del self.memory_map[p][i]
             if len(self.memory_map[p]) == 0:
                 del self.memory_map[p]
-        self.index_map[self.memory_index] = pair, len(self.memory_map[pair]) - 1
+        self.index_map[self.memory_index] = pair, ind
         self.memory[self.memory_index] = (state, action, reward, next_state, done)
         self.memory_index = (self.memory_index + 1) % self.max_memory_size
 
@@ -353,7 +355,7 @@ class Agent(object):
             else:
                 memory = self.memory_map[random.choice(self.memory_pairs)]
             batch_size = self.batch_size if len(memory) >= self.batch_size else len(memory)
-            batch = random.sample(memory, batch_size)
+            batch = random.sample(list(memory.values()), batch_size)
             # if len(batch) != self.batch_size:
             #     print('problem in len batch: ', len(batch))
 
@@ -420,6 +422,7 @@ class Agent(object):
             av = mean([len(v) for v in self.memory_map.values()])
             bs = self.batch_size if self.batch_size < av else av
             num_batches = len(self.memory) // bs
+            num_batches *= 2
             train_gen = self.training_generator_by_batch
         else:
             num_batches = len(self.memory)
@@ -430,7 +433,7 @@ class Agent(object):
         self.beh_model._make_predict_function()
         self.tar_model._make_predict_function()
         self.beh_model.fit_generator(train_gen(), epochs=1,
-                                     verbose=1, steps_per_epoch=num_batches)
+                                     verbose=1, steps_per_epoch=num_batches,use_multiprocessing=self.multiprocessing)
         self.get_state_output = self._build_state_model(self.beh_model)
         self.get_state_and_action = self._built_state_action_model(self.beh_model)
         # K.clear_session()
