@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Init. Objects
     user = UserSimulatorFB(constants,fbrowser.graph)
 
-    dqn_agent = AgentFB(256, constants)
+    dqn_agent = AgentFB(256, constants, True, False)
 
 
 def run_round():

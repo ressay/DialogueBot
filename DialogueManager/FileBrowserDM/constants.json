@@ -3,7 +3,7 @@
     "usersim": true,
     "warmup_mem": 1000,
     "num_ep_run": 40000,
-    "train_freq": 300,
+    "train_freq": 200,
     "max_round_num": 20,
     "success_rate_threshold": 0.3
   },
@@ -12,7 +12,7 @@
     "load_weights_file_path": 0,
     "vanilla": true,
     "learning_rate": 1e-3,
-    "batch_size": 64,
+    "batch_size": 32,
     "dqn_hidden_size": 80,
     "epsilon_init": 0.0,
     "gamma": 0.9,
