@@ -18,6 +18,7 @@ class Agent(object):
         self.memory = []
         self.memory_index = 0
         self.memory_map = {}
+        self.pair_count = {}
         self.memory_pairs = []
         self.index_map = []
         self.max_memory_size = self.C['max_mem_size']
@@ -282,8 +283,10 @@ class Agent(object):
         pair = len(tr), len(ac)
         if pair not in self.memory_map:
             self.memory_map[pair] = {}
+            self.pair_count[pair] = 0
             self.memory_pairs.append(pair)
-        ind = len(self.memory_map[pair])
+        ind = self.pair_count[pair]
+        self.pair_count[pair] += 1
         self.memory_map[pair][ind] = (state, action, reward, next_state, done)
 
         if len(self.memory) < self.max_memory_size:
