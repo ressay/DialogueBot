@@ -135,15 +135,15 @@ class UserSimulatorFB(UserSimulator):
 
     def reward_function(self, agent_action, success):
         if success:
-            return self.max_round - self.round
+            return self.goal['goal_tree'].r_size()
         if self.sub_goal_exists():  # if there are pending sub_goals
             reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
             if reward:
                 return reward
-        f, t = self.state['current_similarity']
-        pf, pt = self.state['previous_similarity']
-        if f / t > pf / pt:  # tree similarity got better
-            return 1
+        # f, t = self.state['current_similarity']
+        # pf, pt = self.state['previous_similarity']
+        # if f / t > pf / pt:  # tree similarity got better
+        #     return 1
         if self.state['current_uAction']['intent'] == self.confirm:  # if confirming an action for agent, reward is neutral
             return 0
         return -1
