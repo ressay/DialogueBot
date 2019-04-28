@@ -76,6 +76,7 @@ class UserSimulatorFB(UserSimulator):
         }
         self.round = 0
         self.generate_goal()
+        self.max_round = self.goal['goal_tree'].r_size()*4
         return self._return_init_action()
 
     def _return_init_action(self):
