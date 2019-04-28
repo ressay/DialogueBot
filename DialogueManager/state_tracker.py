@@ -194,7 +194,7 @@ class StateTracker(object):
         self.state_map['last_user_action'] = user_action
         self.recent_user_triplets = self.get_triplets_from_action(user_action)
         self.add_triplets(self.recent_user_triplets)
-        self.all_episode_triplets += self.recent_user_triplets
+        self.add_to_all_triplets(self.recent_user_triplets)
         if update_encoding:
             self.encode_triplets(self.recent_user_triplets)
 
@@ -202,7 +202,7 @@ class StateTracker(object):
         self.state_map['last_agent_action'] = agent_action
         self.recent_agent_triplets = self.get_triplets_from_agent_action(agent_action)
         self.add_triplets(self.recent_agent_triplets)
-        self.all_episode_triplets += self.recent_agent_triplets
+        self.add_to_all_triplets(self.recent_agent_triplets)
         if update_encoding:
             self.encode_triplets(self.recent_agent_triplets)
 

@@ -11,7 +11,8 @@ import keras.backend as K
 
 
 class Agent(object):
-    def __init__(self, state_size, constants, train_by_batch=True,use_multiprocessing=True) -> None:
+    def __init__(self, state_size, constants, train_by_batch=True,
+                 use_multiprocessing=True, compress_state=False) -> None:
         super().__init__()
 
         self.C = constants['agent']
@@ -29,6 +30,7 @@ class Agent(object):
         self.train_by_batch = train_by_batch
         self.samples_trained = 0
         self.multiprocessing = use_multiprocessing
+        self.compress_state = compress_state
 
         self.load_weights_file_path = self.C['load_weights_file_path']
         self.save_weights_file_path = self.C['save_weights_file_path']
@@ -50,6 +52,7 @@ class Agent(object):
         self.get_state_and_action = self._built_state_action_model(self.beh_model)
 
         self.graph_encoding = np.zeros(self.state_size)
+        self.zeros = np.zeros(self.state_size)
         self.current_triplets_vectors = np.array([])
         self.current_actions_vector = np.array([])
         self.current_possible_actions = []
@@ -128,10 +131,11 @@ class Agent(object):
         self.update_state_user_action(user_action)
 
     def get_state_compressed(self):
-        return [self.state_tracker.all_episode_triplets.copy(),self.current_actions_vector.copy()]
+        return [self.state_tracker.all_episode_triplets.copy(), self.current_actions_vector.copy()]
 
     def uncompress_state(self, state):
         triplets, actions = state
+        return [self.zeros, self.state_tracker.transform_triplets_rdf_to_encoding(triplets, True), actions]
 
 
     def get_state(self):
@@ -288,7 +292,10 @@ class Agent(object):
             done (bool)
 
         """
-        st, tr, ac = state
+        if not self.compress_state:
+            st, tr, ac = state
+        else:
+            tr, ac = state
         pair = len(tr), len(ac)
         if pair not in self.memory_map:
             self.memory_map[pair] = {}
@@ -365,6 +372,12 @@ class Agent(object):
 
     def training_generator_by_batch(self, with_padding=False):
         self.samples_trained = 0
+        def do_nothing(state):
+            return state
+        if not self.compress_state:
+            transform = do_nothing
+        else:
+            transform = self.uncompress_state
         while True:
             if with_padding:
                 memory = self.memory
@@ -375,8 +388,8 @@ class Agent(object):
             # if len(batch) != self.batch_size:
             #     print('problem in len batch: ', len(batch))
 
-            states = [sample[0] for sample in batch]
-            next_states = [sample[3] for sample in batch]
+            states = [transform(sample[0]) for sample in batch]
+            next_states = [transform(sample[3]) for sample in batch]
 
             # assert states.shape == (self.batch_size, self.state_size), 'States Shape: {}'.format(states.shape)
             # assert next_states.shape == states.shape
@@ -404,7 +417,7 @@ class Agent(object):
                 else:
                     t[a] = r + self.gamma * np.amax(tar_next_state_preds[i]) * (not d)
 
-                st, tr, ac = s
+                st, tr, ac = transform(s)
                 input_tr.append(tr)
                 input_st.append(st)
                 input_ac.append(ac)

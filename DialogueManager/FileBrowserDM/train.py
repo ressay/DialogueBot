@@ -33,17 +33,21 @@ if __name__ == "__main__":
     TRAIN_FREQ = run_dict['train_freq']
     MAX_ROUND_NUM = run_dict['max_round_num']
     SUCCESS_RATE_THRESHOLD = run_dict['success_rate_threshold']
+    compress = True
 
 
     # Init. Objects
     user = UserSimulatorFB(constants,fbrowser.graph)
 
-    dqn_agent = AgentFB(256, constants, True, False)
+    dqn_agent = AgentFB(256, constants, True, False, compress)
 
 
 def run_round():
     # 1) Agent takes action given state tracker's representation of dialogue (state)
-    state = dqn_agent.get_state()
+    if not compress:
+        state = dqn_agent.get_state()
+    else:
+        state = dqn_agent.get_state_compressed()
     agent_action_index, agent_action = dqn_agent.step()
     user_action, reward, done, success = user.step(agent_action)
     # if not done:
@@ -53,7 +57,10 @@ def run_round():
     dqn_agent.update_state_user_action(user_action)
     # state_tracker.update_state_user(user_action)
     # 6) Get next state and add experience
-    next_state = dqn_agent.get_state()
+    if not compress:
+        next_state = dqn_agent.get_state()
+    else:
+        next_state = dqn_agent.get_state_compressed()
     # next_state = state_tracker.get_state(done)
     dqn_agent.add_experience(state, agent_action_index, reward, next_state, done)
 
