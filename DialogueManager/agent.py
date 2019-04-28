@@ -37,6 +37,7 @@ class Agent(object):
             raise ValueError('Max memory size must be at least as great as batch size!')
 
         self.state_size = state_size
+        self.episodes_triplets = []
         # self.possible_actions = self.C['agent_actions']
         # self.num_actions = len(self.possible_actions)
 
@@ -122,8 +123,16 @@ class Agent(object):
         :param user_action:
         :return:
         """
+        self.graph_encoding = np.zeros(self.state_size)
         self.state_tracker = self.init_state_tracker()
         self.update_state_user_action(user_action)
+
+    def get_state_compressed(self):
+        return [self.state_tracker.all_episode_triplets.copy(),self.current_actions_vector.copy()]
+
+    def uncompress_state(self, state):
+        triplets, actions = state
+
 
     def get_state(self):
         """
