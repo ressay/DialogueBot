@@ -304,9 +304,12 @@ class Agent(object):
 
     def empty_memory(self):
         """Empties the memory and resets the memory index."""
-
         self.memory = []
         self.memory_index = 0
+        self.memory_map = {}
+        self.pair_count = {}
+        self.memory_pairs = []
+        self.index_map = []
 
     def is_memory_full(self):
         """Returns true if the memory is full."""

@@ -14,7 +14,7 @@
     "learning_rate": 1e-3,
     "batch_size": 32,
     "dqn_hidden_size": 80,
-    "epsilon_init": 0.0,
+    "epsilon_init": 0.5,
     "gamma": 0.9,
     "max_mem_size": 20000,
     "agent_actions": ["Create_file","Delete_file","Change_directory",
