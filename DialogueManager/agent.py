@@ -131,11 +131,11 @@ class Agent(object):
         self.update_state_user_action(user_action)
 
     def get_state_compressed(self):
-        return [self.state_tracker.all_episode_triplets.copy(), self.current_actions_vector.copy()]
+        return [self.state_tracker.get_episode_triplets(), self.current_actions_vector.copy()]
 
     def uncompress_state(self, state):
         triplets, actions = state
-        return [self.zeros, self.state_tracker.transform_triplets_rdf_to_encoding(triplets, True), actions]
+        return [self.zeros, triplets, actions]
 
 
     def get_state(self):
