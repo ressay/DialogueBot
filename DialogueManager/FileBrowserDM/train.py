@@ -126,4 +126,5 @@ def episode_reset():
 
 
 # warmup_run()
+main()
 train_run()
