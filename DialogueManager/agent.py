@@ -433,8 +433,8 @@ class Agent(object):
                 targets = pad_sequences(targets)
             else:
                 input_tr = np.array(input_tr)
-                input_ac = pad_sequences(input_ac)
-                targets = pad_sequences(targets)
+                input_ac = pad_sequences(input_ac, value=-1000)
+                targets = pad_sequences(targets, value=-1000)
             self.samples_trained += len(targets)
             self.avg_triplets_sample += len(input_tr[0])*len(targets)
             yield [input_tr, input_st, input_ac], targets
