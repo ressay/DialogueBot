@@ -296,7 +296,7 @@ class Agent(object):
             st, tr, ac = state
         else:
             tr, ac = state
-        pair = len(tr), len(ac)
+        pair = len(tr)#, len(ac)
         if pair not in self.memory_map:
             self.memory_map[pair] = {}
             self.pair_count[pair] = 0
@@ -433,10 +433,10 @@ class Agent(object):
                 targets = pad_sequences(targets)
             else:
                 input_tr = np.array(input_tr)
-                # input_ac = pad_sequences(input_ac)
-                # targets = pad_sequences(targets)
+                input_ac = pad_sequences(input_ac)
+                targets = pad_sequences(targets)
             self.samples_trained += len(targets)
-            self.avg_triplets_sample += len(input_tr[0])
+            self.avg_triplets_sample += len(input_tr[0])*len(targets)
             yield [input_tr, input_st, input_ac], targets
 
     def train(self):
