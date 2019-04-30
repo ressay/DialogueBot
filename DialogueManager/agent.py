@@ -112,10 +112,11 @@ class Agent(object):
 
         encoder_state_repeated = Lambda(repeat_vector,
                                         output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
-        concat = Concatenate()([encoder_state_repeated, DQN_inputs])
-        mask = Masking(mask_value=self.maskv)(concat)
+        mask = Masking(mask_value=self.maskv)(DQN_inputs)
+        concat = Concatenate()([encoder_state_repeated, mask])
+
         outputs = TimeDistributed(DQN_unit([hidden_state, hidden_state, hidden_state]), name='distributed' + name_pre)(
-            mask)
+            concat)
 
         model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
         model.compile('rmsprop', loss='mse')
