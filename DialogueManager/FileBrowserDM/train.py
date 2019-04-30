@@ -126,5 +126,16 @@ def episode_reset():
 
 
 # warmup_run()
-main()
 train_run()
+
+def simulate():
+    done = False
+    user_action = user.reset()
+    print('user: ', user_action)
+    dqn_agent.reset(user_action)
+    while not done:
+        agent_action_index, agent_action = dqn_agent.step()
+        print('agent: ',agent_action)
+        user_action, reward, done, success = user.step(agent_action)
+        print('user: ', user_action)
+        dqn_agent.update_state_user_action(user_action)

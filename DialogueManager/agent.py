@@ -59,7 +59,7 @@ class Agent(object):
         self.current_actions_vector = np.array([])
         self.current_possible_actions = []
 
-        # self._load_weights()
+        self._load_weights()
 
     def _build_state_model(self, model, name_pre="_beh"):
         encoder_inputs = model.get_layer('encoder_inputs' + name_pre)
@@ -499,10 +499,13 @@ class Agent(object):
 
         if not self.load_weights_file_path:
             return
-        beh_load_file_path = re.sub(r'\.h5', r'_beh.h5', self.load_weights_file_path)
-        self.beh_model.load_weights(beh_load_file_path)
-        tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
-        self.tar_model.load_weights(tar_load_file_path)
+        try:
+            beh_load_file_path = re.sub(r'\.h5', r'_beh.h5', self.load_weights_file_path)
+            self.beh_model.load_weights(beh_load_file_path)
+            tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
+            self.tar_model.load_weights(tar_load_file_path)
+        except FileNotFoundError:
+            print("couldn't load model")
 
     def init_state_tracker(self):
         return StateTracker(1024, fbrowser.graph)
