@@ -4,7 +4,7 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import math
 from DialogueManager.state_tracker import StateTracker
-from keras.layers import Input, GRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking
+from keras.layers import Input, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
@@ -92,7 +92,7 @@ class Agent(object):
         encoder_state_input = Input(shape=(hidden_state,), name='encoder_state_input' + name_pre)
         # DQN_input = Input(shape=(triplet_size,))
         DQN_inputs = Input(shape=(None, action_size), name='dqn_inputs' + name_pre)
-        _, encoder_state = GRU(hidden_state,
+        _, encoder_state = CuDNNGRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
                                name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
