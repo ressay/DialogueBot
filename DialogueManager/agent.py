@@ -4,7 +4,7 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import math
 from DialogueManager.state_tracker import StateTracker
-from keras.layers import Input, GRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda
+from keras.layers import Input, GRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
@@ -32,6 +32,7 @@ class Agent(object):
         self.avg_triplets_sample = 0
         self.multiprocessing = use_multiprocessing
         self.compress_state = compress_state
+        self.maskv = -1000
 
         self.load_weights_file_path = self.C['load_weights_file_path']
         self.save_weights_file_path = self.C['save_weights_file_path']
@@ -112,9 +113,9 @@ class Agent(object):
         encoder_state_repeated = Lambda(repeat_vector,
                                         output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
         concat = Concatenate()([encoder_state_repeated, DQN_inputs])
-
+        mask = Masking(mask_value=self.maskv)(concat)
         outputs = TimeDistributed(DQN_unit([hidden_state, hidden_state, hidden_state]), name='distributed' + name_pre)(
-            concat)
+            mask)
 
         model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
         model.compile('rmsprop', loss='mse')
@@ -433,8 +434,8 @@ class Agent(object):
                 targets = pad_sequences(targets)
             else:
                 input_tr = np.array(input_tr)
-                input_ac = pad_sequences(input_ac, value=-1000)
-                targets = pad_sequences(targets, value=-1000)
+                input_ac = pad_sequences(input_ac, value=self.maskv)
+                targets = pad_sequences(targets, value=self.maskv)
             self.samples_trained += len(targets)
             self.avg_triplets_sample += len(input_tr[0])*len(targets)
             yield [input_tr, input_st, input_ac], targets
