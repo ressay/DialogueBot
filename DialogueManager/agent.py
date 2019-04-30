@@ -32,7 +32,7 @@ class Agent(object):
         self.avg_triplets_sample = 0
         self.multiprocessing = use_multiprocessing
         self.compress_state = compress_state
-        self.maskv = -1000
+        self.maskv = -5
 
         self.load_weights_file_path = self.C['load_weights_file_path']
         self.save_weights_file_path = self.C['save_weights_file_path']
