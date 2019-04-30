@@ -29,6 +29,7 @@ class Agent(object):
         self.batch_size = self.C['batch_size']
         self.train_by_batch = train_by_batch
         self.samples_trained = 0
+        self.avg_triplets_sample = 0
         self.multiprocessing = use_multiprocessing
         self.compress_state = compress_state
 
@@ -136,7 +137,6 @@ class Agent(object):
     def uncompress_state(self, state):
         triplets, actions = state
         return [self.zeros, self.state_tracker.transform_triplets_rdf_to_encoding(triplets, True), actions]
-
 
     def get_state(self):
         """
@@ -372,8 +372,10 @@ class Agent(object):
 
     def training_generator_by_batch(self, with_padding=False):
         self.samples_trained = 0
+
         def do_nothing(state):
             return state
+
         if not self.compress_state:
             transform = do_nothing
         else:
@@ -434,6 +436,7 @@ class Agent(object):
                 # input_ac = pad_sequences(input_ac)
                 # targets = pad_sequences(targets)
             self.samples_trained += len(targets)
+            self.avg_triplets_sample += len(input_tr[0])
             yield [input_tr, input_st, input_ac], targets
 
     def train(self):
@@ -447,6 +450,7 @@ class Agent(object):
 
         def mean(numbers):
             return float(sum(numbers)) / max(len(numbers), 1)
+
         # K.clear_session()
         # Calc. num of batches to run
         if self.train_by_batch:
@@ -463,12 +467,15 @@ class Agent(object):
         del self.get_state_and_action
         self.beh_model._make_predict_function()
         self.tar_model._make_predict_function()
+        self.avg_triplets_sample = 0
         self.beh_model.fit_generator(train_gen(), epochs=1,
-                                     verbose=1, steps_per_epoch=num_batches,use_multiprocessing=self.multiprocessing)
+                                     verbose=1, steps_per_epoch=num_batches, use_multiprocessing=self.multiprocessing)
+        self.avg_triplets_sample /= self.samples_trained
         self.get_state_output = self._build_state_model(self.beh_model)
         self.get_state_and_action = self._built_state_action_model(self.beh_model)
         # K.clear_session()
-        print('finished fitting on ', self.samples_trained, ' samples')
+        print('finished fitting on ', self.samples_trained, ' samples and avg triplet number: ',
+              self.avg_triplets_sample)
 
     def copy(self):
         """Copies the behavior model's weights into the target model's weights."""
