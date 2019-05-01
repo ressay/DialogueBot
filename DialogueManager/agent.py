@@ -541,13 +541,11 @@ class Agent(object):
 
         if not self.load_weights_file_path:
             return
-        try:
-            beh_load_file_path = re.sub(r'\.h5', r'_beh.h5', self.load_weights_file_path)
-            self.beh_model.load_weights(beh_load_file_path)
+        beh_load_file_path = re.sub(r'\.h5', r'_beh.h5', self.load_weights_file_path)
+        self.beh_model.load_weights(beh_load_file_path)
             # tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
             # self.tar_model.load_weights(tar_load_file_path)
-        except FileNotFoundError:
-            print("couldn't load model")
+
 
     def init_state_tracker(self):
         state_tracker = StateTracker(self.encoder_size, fbrowser.graph,one_hot=self.one_hot)
