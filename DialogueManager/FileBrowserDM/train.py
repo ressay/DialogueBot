@@ -35,7 +35,7 @@ if __name__ == "__main__":
     SUCCESS_RATE_THRESHOLD = run_dict['success_rate_threshold']
     compress = True
     train_batch = True
-    use_encoder = False
+    use_encoder = True
     one_hot = False
 
     # Init. Objects
@@ -46,10 +46,8 @@ if __name__ == "__main__":
 
 def run_round():
     # 1) Agent takes action given state tracker's representation of dialogue (state)
-    if not compress:
-        state = dqn_agent.get_state()
-    else:
-        state = dqn_agent.get_state_compressed()
+    state = dqn_agent.get_state()
+
     agent_action_index, agent_action = dqn_agent.step()
     user_action, reward, done, success = user.step(agent_action)
     # if not done:
@@ -59,10 +57,8 @@ def run_round():
     dqn_agent.update_state_user_action(user_action)
     # state_tracker.update_state_user(user_action)
     # 6) Get next state and add experience
-    if not compress:
-        next_state = dqn_agent.get_state()
-    else:
-        next_state = dqn_agent.get_state_compressed()
+    next_state = dqn_agent.get_state()
+
     # next_state = state_tracker.get_state(done)
     dqn_agent.add_experience(state, agent_action_index, reward, next_state, done)
 

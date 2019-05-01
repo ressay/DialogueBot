@@ -146,7 +146,7 @@ class Agent(object):
         self.reinit_state_tracker()
         self.update_state_user_action(user_action)
 
-    def get_state_compressed(self):
+    def _get_state_compressed(self):
         return [self.state_tracker.all_episode_triplets.copy(), self.current_actions_vector.copy()]
 
     def uncompress_state(self, state):
@@ -159,6 +159,8 @@ class Agent(object):
         and current possible actions
         :return:
         """
+        if self.compress_state and not self.use_graph_encoder:
+            return self._get_state_compressed()
         if self.use_graph_encoder:
             return [self.state_tracker.get_encoded_state(), self.current_actions_vector.copy()]
         new_triplets = self.state_tracker.get_new_triplets()
@@ -260,11 +262,14 @@ class Agent(object):
         else:
             state = [pad_sequences(np.array([s[S] for s in states]))
                                                      for S in range(len(states[0]))]
-
-        if target:
-            result = self.tar_model.predict(state)
-        else:
-            result = self.beh_model.predict(state)
+        try:
+            if target:
+                result = self.tar_model.predict(state)
+            else:
+                result = self.beh_model.predict(state)
+        except Exception:
+            print([s.shape for s in state])
+            exit()
         # flatten each sample of the batch
         result = np.array([sample.flatten() for sample in result])
         return result
