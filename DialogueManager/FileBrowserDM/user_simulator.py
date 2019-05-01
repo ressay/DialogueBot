@@ -47,6 +47,7 @@ class UserSimulatorFB(UserSimulator):
         self.user_responses['ask'] = self._ask_response
         self.user_responses['request'] = self._req_response
         self.debug = 0
+        self.subgoal_reward = 0
 
     def generate_goal(self):
         goal_tree = FileTreeSimulator()
@@ -127,7 +128,7 @@ class UserSimulatorFB(UserSimulator):
                     assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
                     user_response = self.user_responses[agent_intent](agent_action)
             except Exception as e:
-                # print('ERROR HAPPENED AND IGNORING IT: ',e)
+                print('ERROR HAPPENED AND IGNORING IT: ',e)
                 return self._default_response(), -5, False, 0
         self.state['current_uAction'] = user_response
         reward = self.reward_function(agent_action, success)
@@ -141,11 +142,15 @@ class UserSimulatorFB(UserSimulator):
             reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
             if reward:
                 return reward
+        if self.subgoal_reward:
+            reward = self.subgoal_reward
+            self.subgoal_reward = 0
+            return reward
         f, t = self.state['current_similarity']
         pf, pt = self.state['previous_similarity']
         if f / t > pf / pt:  # tree similarity got better
             return 2
-        elif f/t < pf/pt or (f == pf == 0 and t < pt):
+        elif f/t < pf/pt:
             return -3
         if self.state['current_uAction']['intent'] == self.confirm:  # if confirming an action for agent, reward is neutral
             return -0.5
@@ -173,6 +178,7 @@ class UserSimulatorFB(UserSimulator):
             if last_dir[-1] == '/':last_dir = last_dir[:-1]
             if sub_goal['name'] == 'Change_directory' and current_dir == last_dir:
                 self.goal['sub_goal'].remove(sub_goal)
+                self.subgoal_reward = len(sub_goal['dirs'])
 
     def update_state(self, agent_action):
         """
@@ -223,7 +229,8 @@ class UserSimulatorFB(UserSimulator):
         return self.goal['sub_goal'][0]
 
     def add_change_directory_sub_goal(self, dirs):
-        self.goal['sub_goal'].append({'name': 'Change_directory', 'dirs': dirs})
+        self.goal['sub_goal'].append({'name': 'Change_directory',
+                                      'dirs': [(d[:-1] if d[-1] == '/' else d) for d in dirs]})
 
     def generate_sub_goal_intent(self):
         sub_goal = self.next_sub_goal()
@@ -390,9 +397,10 @@ class UserSimulatorFB(UserSimulator):
         return response
 
     def get_sub_goal_reward(self, sub_goal):
-        reward = -2
+        reward = 0
         if sub_goal['name'] == 'Change_directory':
             current_dir = self.state['current_directory']
+            if current_dir[-1] == '/': current_dir = current_dir[:-1]
             if current_dir in sub_goal['dirs']:
                 reward = sub_goal['dirs'].index(current_dir) + 1
                 del sub_goal['dirs'][:reward]

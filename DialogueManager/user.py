@@ -39,6 +39,7 @@ class UserAgent:
         self.state_tracker.update_state_user_action(user_action,False)
         print("possible actions:")
         nodes,actions = self.state_tracker.get_possible_actions()
+        actions = actions[::2]
         for i, a in enumerate(actions):
             print(i+1,': '),
             print(a)
