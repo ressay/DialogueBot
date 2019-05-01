@@ -51,6 +51,7 @@ class Agent(object):
         self.encoder_state_size = self.state_tracker.get_state_size()
         self.tar_model = self._build_model("_tar")
         self.beh_model = self._build_model("_beh")
+        self._load_weights()
         self.copy()
         if not self.use_graph_encoder:
             self.get_state_output = self._build_state_model(self.beh_model)
@@ -68,7 +69,7 @@ class Agent(object):
         else:
             self.transform = self.uncompress_state
 
-        self._load_weights()
+
 
     def _build_state_model(self, model, name_pre="_beh"):
         encoder_inputs = model.get_layer('encoder_inputs' + name_pre)
