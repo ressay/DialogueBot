@@ -147,10 +147,10 @@ class FileTreeSimulator(object):
                 f1, m1 = self.get_file_by_name(n)
                 found += (f1 == f) * 1
                 if not f:
-                    found1, _ = m['tree_sim'].tree_similarity(m1['tree_sim'],False)
+                    found1, _ = m1['tree_sim'].tree_similarity(m['tree_sim'], False)
                     found += found1
         if inverse:
-            found = found - (self.r_size() - found)
+            total += self.r_size() - found
         # if inverse:
         #     f, t = goal_tree.tree_similarity(self, False)
         #     total += t

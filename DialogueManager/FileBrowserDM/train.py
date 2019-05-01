@@ -34,12 +34,14 @@ if __name__ == "__main__":
     MAX_ROUND_NUM = run_dict['max_round_num']
     SUCCESS_RATE_THRESHOLD = run_dict['success_rate_threshold']
     compress = True
-
+    train_batch = True
+    use_encoder = False
+    one_hot = False
 
     # Init. Objects
-    user = UserSimulatorFB(constants,fbrowser.graph)
+    user = UserSimulatorFB(constants, fbrowser.graph)
 
-    dqn_agent = AgentFB(256, constants, True, False, compress)
+    dqn_agent = AgentFB(1024, constants, train_batch, use_encoder, compress, one_hot)
 
 
 def run_round():
@@ -111,8 +113,8 @@ def train_run():
             # Train
             dqn_agent.train()
             # Flush
-            if success_rate >= success_rate_best and success_rate >= SUCCESS_RATE_THRESHOLD:
-                dqn_agent.empty_memory()
+            # if success_rate >= success_rate_best and success_rate >= SUCCESS_RATE_THRESHOLD:
+            #     dqn_agent.empty_memory()
     print('...Training Ended')
 
 

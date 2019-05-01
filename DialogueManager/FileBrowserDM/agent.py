@@ -6,12 +6,12 @@ import Ontologies.onto_fbrowser as fbrowser
 
 class AgentFB(Agent):
     def __init__(self, state_size, constants, train_by_batch=True,
-                 use_multiprocessing=True,compress_state=False) -> None:
+                 use_graph_encoder=True,compress_state=False, one_hot=True) -> None:
         super().__init__(state_size, constants, train_by_batch,
-                         use_multiprocessing, compress_state)
+                         use_graph_encoder, compress_state, one_hot)
 
     def init_state_tracker(self):
-        return StateTrackerFB(self.state_size, fbrowser.graph)
+        return StateTrackerFB(self.encoder_size, fbrowser.graph, one_hot=self.one_hot)
 
 
 if __name__ == '__main__':

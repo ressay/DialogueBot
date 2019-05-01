@@ -9,13 +9,13 @@ from DialogueManager.FileBrowserDM.utils import agent_actions
 
 
 class StateTrackerFB(StateTracker):
-    def __init__(self, size, ontology) -> None:
+    def __init__(self, size, ontology, one_hot=True, lazy_encoding=True) -> None:
         """
         StateTracker constructor
         :param (int) size:
         :param (rdflib.Graph) ontology:
         """
-        super().__init__(size, ontology)
+        super().__init__(size, ontology, one_hot, lazy_encoding)
         self.focused_file = None
         self.user_actions_map = {
             usim.Create_file_desire: self.agent_actions_desire_triplets_u,
@@ -44,6 +44,19 @@ class StateTrackerFB(StateTracker):
             "ask": self.ask_triplets_a,
             "request": self.request_triplets_a
         }
+
+    def reset(self, size, ontology, one_hot=True, lazy_encoding=True):
+        super().reset(size, ontology, one_hot, lazy_encoding)
+        self.focused_file = None
+        self.children = {}
+        self.parent = {}
+        self.nodes_by_name = {}
+        self.name_by_node = {}
+        self.file_exists = set()
+        self.file_type = {}
+        self.root = None
+        self.current_path_node, self.current_path = None, None
+        self.add_known_files_to_graph()
 
     def get_possible_actions(self, encode_actions=True):
         actions = []

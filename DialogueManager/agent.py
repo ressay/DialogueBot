@@ -4,7 +4,7 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import math
 from DialogueManager.state_tracker import StateTracker
-from keras.layers import Input, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking
+from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
@@ -12,7 +12,7 @@ import keras.backend as K
 
 class Agent(object):
     def __init__(self, state_size, constants, train_by_batch=True,
-                 use_multiprocessing=True, compress_state=False) -> None:
+                 use_graph_encoder=False, compress_state=False, one_hot=True) -> None:
         super().__init__()
 
         self.C = constants['agent']
@@ -30,9 +30,10 @@ class Agent(object):
         self.train_by_batch = train_by_batch
         self.samples_trained = 0
         self.avg_triplets_sample = 0
-        self.multiprocessing = use_multiprocessing
+        self.use_graph_encoder = use_graph_encoder
         self.compress_state = compress_state
         self.maskv = -5
+        self.one_hot = one_hot
 
         self.load_weights_file_path = self.C['load_weights_file_path']
         self.save_weights_file_path = self.C['save_weights_file_path']
@@ -41,17 +42,19 @@ class Agent(object):
             raise ValueError('Max memory size must be at least as great as batch size!')
 
         self.state_size = state_size
+        self.encoder_size = 200
         self.episodes_triplets = []
         # self.possible_actions = self.C['agent_actions']
         # self.num_actions = len(self.possible_actions)
 
         self.state_tracker = self.init_state_tracker()
-
+        self.encoder_state_size = self.state_tracker.get_state_size()
         self.tar_model = self._build_model("_tar")
         self.beh_model = self._build_model("_beh")
         self.copy()
-        self.get_state_output = self._build_state_model(self.beh_model)
-        self.get_state_and_action = self._built_state_action_model(self.beh_model)
+        if not self.use_graph_encoder:
+            self.get_state_output = self._build_state_model(self.beh_model)
+            self.get_state_and_action = self._built_state_action_model(self.beh_model)
 
         self.graph_encoding = np.zeros(self.state_size)
         self.zeros = np.zeros(self.state_size)
@@ -83,6 +86,7 @@ class Agent(object):
         output2 = output_layer.output
         return K.function([input1, input2, input3], [output1, output2])
 
+
     def _build_model(self, name_pre=''):
         triplet_size = self.state_tracker.triplet_size
         action_size = self.state_tracker.get_action_size()
@@ -92,13 +96,13 @@ class Agent(object):
         encoder_state_input = Input(shape=(hidden_state,), name='encoder_state_input' + name_pre)
         # DQN_input = Input(shape=(triplet_size,))
         DQN_inputs = Input(shape=(None, action_size), name='dqn_inputs' + name_pre)
-        _, encoder_state = CuDNNGRU(hidden_state,
+        _, encoder_state = GRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
                                name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
 
-        def DQN_unit(layers):
-            DQN_input = Input(shape=(action_size + hidden_state,))
+        def DQN_unit(layers, hidden):
+            DQN_input = Input(shape=(action_size + hidden,))
             output = Dense(layers[0], activation='relu')(DQN_input)
             for layer in layers[1:]:
                 output = Dense(layer, activation='relu')(output)
@@ -110,15 +114,24 @@ class Agent(object):
             sequence_layer = args[1]
             return RepeatVector(K.shape(sequence_layer)[1])(layer_to_repeat)
 
-        encoder_state_repeated = Lambda(repeat_vector,
+        encoded_state_input = Input((self.encoder_state_size,), name='encoded_state_input' + name_pre)
+        if not self.use_graph_encoder:
+            state_repeated = Lambda(repeat_vector,
                                         output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
+            h = hidden_state
         # mask = Masking(mask_value=self.maskv)(DQN_inputs)
-        concat = Concatenate()([encoder_state_repeated, DQN_inputs])
+        else:
+            state_repeated = Lambda(repeat_vector,
+                                    output_shape=(None, self.encoder_state_size))([encoded_state_input, DQN_inputs])
+            h = self.encoder_state_size
+        concat = Concatenate()([state_repeated, DQN_inputs])
 
-        outputs = TimeDistributed(DQN_unit([hidden_state, hidden_state, hidden_state]), name='distributed' + name_pre)(
+        outputs = TimeDistributed(DQN_unit([hidden_state, hidden_state, hidden_state],h), name='distributed' + name_pre)(
             concat)
-
-        model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
+        if self.use_graph_encoder:
+            model = Model([encoded_state_input,DQN_inputs],outputs)
+        else:
+            model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
         model.compile('rmsprop', loss='mse')
         # model.summary()
         return model
@@ -130,7 +143,7 @@ class Agent(object):
         :return:
         """
         self.graph_encoding = np.zeros(self.state_size)
-        self.state_tracker = self.init_state_tracker()
+        self.reinit_state_tracker()
         self.update_state_user_action(user_action)
 
     def get_state_compressed(self):
@@ -138,7 +151,7 @@ class Agent(object):
 
     def uncompress_state(self, state):
         triplets, actions = state
-        return [self.zeros, self.state_tracker.transform_triplets_rdf_to_encoding(triplets, True), actions]
+        return [self.state_tracker.transform_triplets_rdf_to_encoding(triplets, True), self.zeros, actions]
 
     def get_state(self):
         """
@@ -146,8 +159,10 @@ class Agent(object):
         and current possible actions
         :return:
         """
+        if self.use_graph_encoder:
+            return [self.state_tracker.get_encoded_state(), self.current_actions_vector.copy()]
         new_triplets = self.state_tracker.get_new_triplets()
-        states = [self.graph_encoding.copy(), new_triplets, self.current_actions_vector.copy()]
+        states = [new_triplets, self.graph_encoding.copy(), self.current_actions_vector.copy()]
         return states
 
     def update_state_user_action(self, user_action):
@@ -156,7 +171,7 @@ class Agent(object):
         :param user_action:
         :return:
         """
-        self.state_tracker.update_state_user_action(user_action, update_encoding=False)
+        self.state_tracker.update_state_user_action(user_action, update_encoding=self.use_graph_encoder)
         self.current_actions_vector, self.current_possible_actions = self.state_tracker.get_possible_actions()
 
     def step(self):
@@ -167,8 +182,12 @@ class Agent(object):
         states = self.get_state()
         # action_index, action = self.get_action(states)
         # self.graph_encoding = self._predict_state(states)
-        self.graph_encoding, action_index, action = self._predict_state_action(states)
-        self.state_tracker.update_state_agent_action(action, update_encoding=False)
+        if not self.use_graph_encoder:
+            self.graph_encoding, action_index, action = self._predict_state_action(states)
+        else:
+            action_index, action = self.get_action(states)
+            self.graph_encoding = self.state_tracker.get_encoded_state()
+        self.state_tracker.update_state_agent_action(action, update_encoding=self.use_graph_encoder)
         return action_index, action
 
     def get_action(self, states=None):
@@ -237,14 +256,15 @@ class Agent(object):
             numpy.array
         """
         if one:
-            state, new_triplets, possible_actions = [np.array([s]) for s in states]
+            state = [np.array([s]) for s in states]
         else:
-            state, new_triplets, possible_actions = [pad_sequences(np.array([s[S] for s in states])) for S in range(3)]
+            state = [pad_sequences(np.array([s[S] for s in states]))
+                                                     for S in range(len(states[0]))]
 
         if target:
-            result = self.tar_model.predict([new_triplets, state, possible_actions])
+            result = self.tar_model.predict(state)
         else:
-            result = self.beh_model.predict([new_triplets, state, possible_actions])
+            result = self.beh_model.predict(state)
         # flatten each sample of the batch
         result = np.array([sample.flatten() for sample in result])
         return result
@@ -260,7 +280,7 @@ class Agent(object):
         Returns:
             numpy.array
         """
-        state, new_triplets, possible_actions = [np.array([s]) for s in states]
+        new_triplets, state, possible_actions = [np.array([s]) for s in states]
         # model = self.beh_model if not target else self.tar_model
         # if target:
         #     return self.tar_model.predict([new_triplets,state,possible_actions])[1].flatten()
@@ -270,7 +290,7 @@ class Agent(object):
         return self.get_state_output([new_triplets, state])[0][0]
 
     def _predict_state_action(self, states, random_gen=True):
-        state, new_triplets, possible_actions = [np.array([s]) for s in states]
+        new_triplets, state,  possible_actions = [np.array([s]) for s in states]
         new_state, action = self.get_state_and_action([new_triplets, state, possible_actions])
         new_state = new_state[0]
         if random_gen and self.eps > random.random():
@@ -294,11 +314,17 @@ class Agent(object):
             done (bool)
 
         """
-        if not self.compress_state:
-            st, tr, ac = state
-        else:
+
+        if not self.compress_state and not self.use_graph_encoder:
+            tr, st, ac = state
+            pair = len(tr), len(ac)
+        elif not self.use_graph_encoder:
             tr, ac = state
-        pair = len(tr), len(ac)
+            pair = len(tr), len(ac)
+        else:
+            st, ac = state
+            pair = len(ac)
+
         if pair not in self.memory_map:
             self.memory_map[pair] = {}
             self.pair_count[pair] = 0
@@ -362,7 +388,7 @@ class Agent(object):
             else:
                 t[a] = r + self.gamma * np.amax(tar_next_state_preds[0]) * (not d)
 
-            st, tr, ac = s
+            tr, st, ac = s
             input_tr = np.array([tr])
             input_st = np.array([st])
             # target_st = np.array([s_[0]])
@@ -378,7 +404,7 @@ class Agent(object):
         def do_nothing(state):
             return state
 
-        if not self.compress_state:
+        if not self.compress_state or self.use_graph_encoder:
             transform = do_nothing
         else:
             transform = self.uncompress_state
@@ -420,9 +446,11 @@ class Agent(object):
                     t[a] = r + self.gamma * tar_next_state_preds[i][np.argmax(beh_next_states_preds[i])] * (not d)
                 else:
                     t[a] = r + self.gamma * np.amax(tar_next_state_preds[i]) * (not d)
-
-                st, tr, ac = transform(s)
-                input_tr.append(tr)
+                if not self.use_graph_encoder:
+                    tr, st, ac = transform(s)
+                    input_tr.append(tr)
+                else:
+                    st, ac = transform(s)
                 input_st.append(st)
                 input_ac.append(ac)
                 targets.append(np.array([np.array((t[i], t[i + 1])) for i in range(0, len(t), 2)]))
@@ -433,13 +461,17 @@ class Agent(object):
                 input_tr = pad_sequences(input_tr)
                 input_ac = pad_sequences(input_ac)
                 targets = pad_sequences(targets)
-            else:
+            elif not self.use_graph_encoder:
                 input_tr = np.array(input_tr)
                 # input_ac = pad_sequences(input_ac, value=self.maskv)
                 # targets = pad_sequences(targets, value=self.maskv)
             self.samples_trained += len(targets)
-            self.avg_triplets_sample += len(input_tr[0])*len(targets)
-            yield [input_tr, input_st, input_ac], targets
+
+            if not self.use_graph_encoder:
+                self.avg_triplets_sample += len(input_tr[0]) * len(targets)
+                yield [input_tr, input_st, input_ac], targets
+            else:
+                yield [input_st, input_ac], targets
 
     def train(self):
         """
@@ -459,22 +491,24 @@ class Agent(object):
             av = mean([len(v) for v in self.memory_map.values()])
             bs = self.batch_size if self.batch_size < av else av
             num_batches = len(self.memory) // bs
-            num_batches *= 2
+            num_batches *= 1.3
             train_gen = self.training_generator_by_batch
         else:
             num_batches = len(self.memory)
             train_gen = self.training_generator
         # self.beh_model._make_predict_function()
-        del self.get_state_output
-        del self.get_state_and_action
+        if not self.use_graph_encoder:
+            del self.get_state_output
+            del self.get_state_and_action
         self.beh_model._make_predict_function()
         self.tar_model._make_predict_function()
         self.avg_triplets_sample = 0
         self.beh_model.fit_generator(train_gen(), epochs=1,
-                                     verbose=1, steps_per_epoch=num_batches, use_multiprocessing=self.multiprocessing)
+                                     verbose=1, steps_per_epoch=int(num_batches))
         self.avg_triplets_sample /= self.samples_trained
-        self.get_state_output = self._build_state_model(self.beh_model)
-        self.get_state_and_action = self._built_state_action_model(self.beh_model)
+        if not self.use_graph_encoder:
+            self.get_state_output = self._build_state_model(self.beh_model)
+            self.get_state_and_action = self._built_state_action_model(self.beh_model)
         # K.clear_session()
         print('finished fitting on ', self.samples_trained, ' samples and avg triplet number: ',
               self.avg_triplets_sample)
@@ -508,7 +542,11 @@ class Agent(object):
             print("couldn't load model")
 
     def init_state_tracker(self):
-        return StateTracker(1024, fbrowser.graph)
+        state_tracker = StateTracker(self.encoder_size, fbrowser.graph,one_hot=self.one_hot)
+        return state_tracker
+
+    def reinit_state_tracker(self):
+        self.state_tracker.reset(self.encoder_size,fbrowser.graph,one_hot=self.one_hot)
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ from keras import Model
 import Ontologies.onto_fbrowser as fbrowser
 from Ontologies import graph
 from keras.models import load_model
+from keras.layers import Input
 
 
 def to_int_onehot(arr):
@@ -37,8 +38,9 @@ class StateTracker(object):
     node_size = 9
     edge_size = 7
     triplet_size = 2 * node_size + edge_size
+    hidden_state = 1024
 
-    def __init__(self, size, ontology) -> None:
+    def __init__(self, size, ontology, one_hot=True, lazy_encoding=True) -> None:
         """
         StateTracker constructor
         :param (int) size:
@@ -46,15 +48,18 @@ class StateTracker(object):
         """
         super().__init__()
         self.cursor = 0
-        self.encoder = self.load_encoder()
+        self.encoder = None
+        self.encoder_type = one_hot
+        self.encoder = self.load_encoder(one_hot)
         size = int(math.ceil(size / self.encoder_size))
-        self.vectors = [np.zeros(self.encoder_size) for i in range(size)]
+        self.vectors = [np.zeros(self.hidden_state) for i in range(size)]
         self.ontology = rdflib.Graph()
         self.ontology += ontology
         self.graph = graph.Graph(ontology.triples((None, None, None)))
         self.recent_user_triplets = []
         self.recent_agent_triplets = []
         self.all_episode_triplets = []
+        self.lazy_encoding = lazy_encoding
         self.state_map = {
             'ontology': self.ontology,
             'graph': self.graph,
@@ -63,6 +68,32 @@ class StateTracker(object):
             'last_user_action': None,
             'last_agent_action': None
         }
+        self.triplets_to_transform = []
+
+    def reset(self, size, ontology, one_hot=True, lazy_encoding=True):
+        self.cursor = 0
+        encoder = self.load_encoder(one_hot)
+        if encoder is not None:
+            self.encoder = encoder
+        self.encoder_type = one_hot
+        size = int(math.ceil(size / self.encoder_size))
+        self.vectors = [np.zeros(self.hidden_state) for i in range(size)]
+        self.ontology = rdflib.Graph()
+        self.ontology += ontology
+        self.graph = graph.Graph(ontology.triples((None, None, None)))
+        self.recent_user_triplets = []
+        self.recent_agent_triplets = []
+        self.all_episode_triplets = []
+        self.lazy_encoding = lazy_encoding
+        self.state_map = {
+            'ontology': self.ontology,
+            'graph': self.graph,
+            'recent_triplets': self.recent_user_triplets,
+            'recent_agent_triplets': self.recent_agent_triplets,
+            'last_user_action': None,
+            'last_agent_action': None
+        }
+        self.triplets_to_transform = []
 
     def get_possible_actions(self):
         """
@@ -77,29 +108,60 @@ class StateTracker(object):
         return 1
 
     def get_state_size(self):
-        return self.encoder_size * len(self.vectors)
+        return self.hidden_state * len(self.vectors)
+
+    def rename_layers(self, model, one_hot):
+        if one_hot: # ONE HOT
+            model.get_layer('input_4').name = 'input_encoder'
+            model.get_layer('input_5').name = 'input_decoder'
+            model.get_layer('gru_3').name = 'gru_encoder'
+            model.get_layer('gru_4').name = 'gru_decoder'
+            model.get_layer('model_3').name = 'output_unit'
+        else: # BINARY
+            model.get_layer('input_19').name = 'input_encoder'
+            model.get_layer('input_20').name = 'input_decoder'
+            model.get_layer('gru_11').name = 'gru_encoder'
+            model.get_layer('gru_12').name = 'gru_decoder'
+            model.get_layer('model_12').name = 'output_unit'
+
+    def create_encoder_model(self,model, one_hot):
+        self.rename_layers(model, one_hot)
+        input_encoder = model.get_layer('input_encoder').input
+        input_encoder_state = Input(shape=(self.hidden_state,))
+        gru_encoder = model.get_layer('gru_encoder')
+        decoder_output, encoder_state = gru_encoder(input_encoder, initial_state=input_encoder_state)
+
+        return Model([input_encoder, input_encoder_state], encoder_state)
 
     def load_encoder(self, one_hot=True):
-        model = None
+        if self.encoder is not None and self.encoder_type == one_hot:
+            return None
         if one_hot:
             self.int_to_vec = onehot_array
             self.vec_to_int = to_int_onehot
-            path = 'model_onehot.h5'
+            path = 'models/model_onehot.h5'
             self.node_size = 2 ** self.node_size
             self.edge_size = 2 ** self.edge_size
         else:
             self.int_to_vec = bin_array
             self.vec_to_int = to_int_binary
-            path = 'model_binary.h5'
+            path = 'models/model_binary.h5'
         self.triplet_size = 2 * self.node_size + self.edge_size
-        # model = load_model(path)
-        return model
+        # try:
+        model = load_model(path)
+        return self.create_encoder_model(model,one_hot)
+        # except Exception:
+        #     return None
 
     def get_state(self, encoded=True):
         self.state_map['recent_triplets'] = self.recent_user_triplets
         if encoded:
-            self.state_map['encoded'] = np.concatenate(self.vectors, axis=None)
+            self.state_map['encoded'] = self.get_encoded_state()
         return self.state_map
+
+    def get_encoded_state(self):
+        self.encode_triplets([], False)
+        return np.concatenate(self.vectors, axis=None)
 
     def triplet_encoding_shape(self, number_of_triplets):
         return number_of_triplets, self.triplet_size
@@ -160,16 +222,22 @@ class StateTracker(object):
         """
         pass
 
-    def encode_triplets(self, triplets):
+    def encode_triplets(self, triplets, lazy=True):
         """
         adds triplets to state's knowledge graph
+        :param lazy: if lazy triplets are not encoded but added to a wait list
         :param (list) triplets: list of triplets to add to state graph
         :return:
         """
-        graph = self.transform_triplets_rdf_to_encoding(triplets)
-        i = self.cursor
-        self.vectors[i] = self.encoder.predict([graph, self.vectors[i]])
-        self.cursor = (self.cursor + 1) % len(self.vectors)
+        self.triplets_to_transform += triplets
+        if len(self.triplets_to_transform) == 0:
+            return
+        if not lazy:
+            graph = self.transform_triplets_rdf_to_encoding(self.triplets_to_transform)
+            i = self.cursor
+            self.vectors[i] = self.encoder.predict([np.array([graph]), np.array([self.vectors[i]])])[0]
+            self.cursor = (self.cursor + 1) % len(self.vectors)
+            self.triplets_to_transform = []
 
     def get_triplets_from_action(self, user_action):
         """
