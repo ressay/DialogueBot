@@ -147,11 +147,11 @@ class StateTracker(object):
             self.vec_to_int = to_int_binary
             path = 'models/model_binary.h5'
         self.triplet_size = 2 * self.node_size + self.edge_size
-        # try:
-        model = load_model(path)
-        return self.create_encoder_model(model,one_hot)
-        # except Exception:
-        #     return None
+        try:
+            model = load_model(path)
+            return self.create_encoder_model(model,one_hot)
+        except Exception:
+            return None
 
     def get_state(self, encoded=True):
         self.state_map['recent_triplets'] = self.recent_user_triplets
