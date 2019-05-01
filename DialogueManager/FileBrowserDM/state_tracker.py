@@ -241,7 +241,7 @@ class StateTrackerFB(StateTracker):
         triplets.append((fbrowser.Create_file, fbrowser.has_parameter, file_node))
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
         # update inner state
-        self.file_exists.add(file_node)
+        self.add_file_existence(file_node)
         return triplets
 
     def delete_file_triplets_a(self, agent_action):
@@ -252,7 +252,7 @@ class StateTrackerFB(StateTracker):
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
 
         # update inner state
-        self.file_exists.remove(agent_action['file_node'])
+        self.remove_file_existence(agent_action['file_node'])
         return triplets
 
     def change_directory_triplets_a(self, agent_action):
@@ -300,6 +300,7 @@ class StateTrackerFB(StateTracker):
         root_uri = fbrowser.prefix1 + "root_directory"
         name = "~"
         root = rdflib.URIRef(root_uri)
+        self.add_file_existence(root)
         self.root = root
         self.file_type[root] = fbrowser.Directory
         triplets.append((root, onto.rdf_type, fbrowser.Directory))
@@ -318,9 +319,19 @@ class StateTrackerFB(StateTracker):
 
     def add_file_existence(self, file_node):
         self.file_exists.add(file_node)
+        if file_node in self.parent:
+            p = self.parent[file_node]
+            if p not in self.file_exists:
+                self.add_file_existence(p)
+
 
     def remove_file_existence(self, file_node):
         self.file_exists.remove(file_node)
+        if file_node not in self.children:
+            return
+        for c in self.children[file_node]:
+            if c in self.file_exists:
+                self.remove_file_existence(c)
 
     def get_path_of_file(self, file_name):
         """

@@ -243,7 +243,10 @@ class FileTreeSimulator(object):
         if not p:
             tree_map = self.tree_map
         else:
-            r = self.get_file_dict_from_path(p)
+            try:
+                r = self.get_file_dict_from_path(p)
+            except Exception as e:
+                raise Exception('error from remove as ', e)
             if r is None:
                 tree_map = self.tree_map
             else:
