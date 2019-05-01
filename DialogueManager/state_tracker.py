@@ -72,9 +72,9 @@ class StateTracker(object):
 
     def reset(self, size, ontology, one_hot=True, lazy_encoding=True):
         self.cursor = 0
-        encoder = self.load_encoder(one_hot)
-        if encoder is not None:
-            self.encoder = encoder
+        # encoder = self.load_encoder(one_hot)
+        # if encoder is not None:
+        #     self.encoder = encoder
         self.encoder_type = one_hot
         size = int(math.ceil(size / self.encoder_size))
         self.vectors = [np.zeros(self.hidden_state) for i in range(size)]

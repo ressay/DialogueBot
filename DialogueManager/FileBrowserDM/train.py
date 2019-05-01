@@ -36,7 +36,7 @@ if __name__ == "__main__":
     compress = True
     train_batch = True
     use_encoder = False
-    one_hot = False
+    one_hot = True
 
     # Init. Objects
     user = UserSimulatorFB(constants, fbrowser.graph)
