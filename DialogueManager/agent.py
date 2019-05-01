@@ -61,6 +61,12 @@ class Agent(object):
         self.current_triplets_vectors = np.array([])
         self.current_actions_vector = np.array([])
         self.current_possible_actions = []
+        def do_nothing(state):
+            return state
+        if not self.compress_state or self.use_graph_encoder:
+            self.transform = do_nothing
+        else:
+            self.transform = self.uncompress_state
 
         self._load_weights()
 
@@ -262,14 +268,11 @@ class Agent(object):
         else:
             state = [pad_sequences(np.array([s[S] for s in states]))
                                                      for S in range(len(states[0]))]
-        try:
-            if target:
-                result = self.tar_model.predict(state)
-            else:
-                result = self.beh_model.predict(state)
-        except Exception:
-            print([s.shape for s in state])
-            exit()
+        if target:
+            result = self.tar_model.predict(state)
+        else:
+            result = self.beh_model.predict(state)
+
         # flatten each sample of the batch
         result = np.array([sample.flatten() for sample in result])
         return result
@@ -285,7 +288,7 @@ class Agent(object):
         Returns:
             numpy.array
         """
-        new_triplets, state, possible_actions = [np.array([s]) for s in states]
+        new_triplets, state, possible_actions = [np.array([s]) for s in self.transform(states)]
         # model = self.beh_model if not target else self.tar_model
         # if target:
         #     return self.tar_model.predict([new_triplets,state,possible_actions])[1].flatten()
@@ -295,7 +298,7 @@ class Agent(object):
         return self.get_state_output([new_triplets, state])[0][0]
 
     def _predict_state_action(self, states, random_gen=True):
-        new_triplets, state,  possible_actions = [np.array([s]) for s in states]
+        new_triplets, state,  possible_actions = [np.array([s]) for s in self.transform(states)]
         new_state, action = self.get_state_and_action([new_triplets, state, possible_actions])
         new_state = new_state[0]
         if random_gen and self.eps > random.random():

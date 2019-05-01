@@ -35,7 +35,7 @@ if __name__ == "__main__":
     SUCCESS_RATE_THRESHOLD = run_dict['success_rate_threshold']
     compress = True
     train_batch = True
-    use_encoder = True
+    use_encoder = False
     one_hot = False
 
     # Init. Objects
