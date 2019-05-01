@@ -145,7 +145,7 @@ class UserSimulatorFB(UserSimulator):
         pf, pt = self.state['previous_similarity']
         if f / t > pf / pt:  # tree similarity got better
             return 2
-        elif f/t < pf/pt:
+        elif f/t < pf/pt or (f == pf == 0 and t < pt):
             return -3
         if self.state['current_uAction']['intent'] == self.confirm:  # if confirming an action for agent, reward is neutral
             return -0.5
@@ -390,7 +390,7 @@ class UserSimulatorFB(UserSimulator):
         return response
 
     def get_sub_goal_reward(self, sub_goal):
-        reward = 0
+        reward = -2
         if sub_goal['name'] == 'Change_directory':
             current_dir = self.state['current_directory']
             if current_dir in sub_goal['dirs']:

@@ -198,10 +198,10 @@ class StateTrackerFB(StateTracker):
         file_info['node'] = file_node
         file_info['type'] = file_type
         self.set_focused_file(file_info)
-        d = BNode()
-        triplets.append((d, onto.rdf_type, desire))
-        triplets.append((fbrowser.User, fbrowser.has_desire, d))
-        triplets.append((d, fbrowser.has_parameter, file_node))
+        # d = BNode()
+        # triplets.append((d, onto.rdf_type, desire))
+        # triplets.append((fbrowser.User, fbrowser.has_desire, d))
+        triplets.append((desire, fbrowser.has_parameter, file_node))
         return triplets
 
     ################ AGENT ACTION TRIPLETS
@@ -222,33 +222,34 @@ class StateTrackerFB(StateTracker):
         triplets.append((ask_node, onto.rdf_type, fbrowser.A_ask))
         # TODO FIX ACTION_NODE
         triplets.append((ask_node, fbrowser.has_parameter, agent_action['action']['action_node']))
-        triplets.append((fbrowser.Agent, fbrowser.a_acted, ask_node))
+        # triplets.append((fbrowser.Agent, fbrowser.a_acted, ask_node))
         return triplets
 
     def request_triplets_a(self, agent_action):
         triplets = []
-        req_node = BNode()
-        triplets.append((req_node, onto.rdf_type, fbrowser.A_request))
-        triplets.append((fbrowser.Agent, fbrowser.a_acted, req_node))
+        # req_node = BNode()
+        # triplets.append((req_node, onto.rdf_type, fbrowser.A_request))
+        # triplets.append((fbrowser.Agent, fbrowser.a_acted, req_node))
+        triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.A_request))
         return triplets
 
     def create_file_triplets_a(self, agent_action):
         triplets = []
         file_node = agent_action['file_node']
-        action_node = BNode()
-        triplets.append((action_node, onto.rdf_type, fbrowser.Create_file))
-        triplets.append((action_node, fbrowser.has_parameter, file_node))
-        triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
+        # action_node = BNode()
+        # triplets.append((action_node, onto.rdf_type, fbrowser.Create_file))
+        triplets.append((fbrowser.Create_file, fbrowser.has_parameter, file_node))
+        # triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
         # update inner state
         self.file_exists.add(file_node)
         return triplets
 
     def delete_file_triplets_a(self, agent_action):
         triplets = []
-        action_node = BNode()
-        triplets.append((action_node, onto.rdf_type, fbrowser.Delete_file))
-        triplets.append((action_node, fbrowser.has_parameter, agent_action['file_node']))
-        triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
+        # action_node = BNode()
+        # triplets.append((action_node, onto.rdf_type, fbrowser.Delete_file))
+        triplets.append((fbrowser.Delete_file, fbrowser.has_parameter, agent_action['file_node']))
+        # triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
 
         # update inner state
         self.file_exists.remove(agent_action['file_node'])
@@ -257,9 +258,9 @@ class StateTrackerFB(StateTracker):
     def change_directory_triplets_a(self, agent_action):
         triplets = []
         action_node = BNode()
-        triplets.append((action_node, onto.rdf_type, fbrowser.Change_directory))
-        triplets.append((action_node, fbrowser.change_dir_to, agent_action['file_node']))
-        triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
+        # triplets.append((action_node, onto.rdf_type, fbrowser.Change_directory))
+        triplets.append((fbrowser.Change_directory, fbrowser.change_dir_to, agent_action['file_node']))
+        # triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
 
         # update inner state
         self.change_directory_node(agent_action['file_node'])
