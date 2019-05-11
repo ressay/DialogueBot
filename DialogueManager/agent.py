@@ -12,7 +12,7 @@ import keras.backend as K
 
 class Agent(object):
     def __init__(self, state_size, constants, train_by_batch=True,
-                 use_graph_encoder=False, compress_state=False, one_hot=True) -> None:
+                 use_graph_encoder=False, compress_state=False, one_hot=True, data=None) -> None:
         super().__init__()
 
         self.C = constants['agent']
@@ -47,7 +47,7 @@ class Agent(object):
         # self.possible_actions = self.C['agent_actions']
         # self.num_actions = len(self.possible_actions)
 
-        self.state_tracker = self.init_state_tracker()
+        self.state_tracker = self.init_state_tracker(data)
         self.encoder_state_size = self.state_tracker.get_state_size()
         self.tar_model = self._build_model("_tar")
         self.beh_model = self._build_model("_beh")
@@ -106,6 +106,7 @@ class Agent(object):
         _, encoder_state = GRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
+                               # reset_after=True,
                                name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
 
         def DQN_unit(layers, hidden):
@@ -143,14 +144,14 @@ class Agent(object):
         # model.summary()
         return model
 
-    def reset(self, user_action):
+    def reset(self, user_action,data):
         """
         resets the agent with start user action
         :param user_action:
         :return:
         """
         self.graph_encoding = np.zeros(self.state_size)
-        self.reinit_state_tracker()
+        self.reinit_state_tracker(data)
         self.update_state_user_action(user_action)
 
     def _get_state_compressed(self):
@@ -180,6 +181,7 @@ class Agent(object):
         :param user_action:
         :return:
         """
+
         self.state_tracker.update_state_user_action(user_action, update_encoding=self.use_graph_encoder)
         self.current_actions_vector, self.current_possible_actions = self.state_tracker.get_possible_actions()
 
@@ -548,12 +550,12 @@ class Agent(object):
             # self.tar_model.load_weights(tar_load_file_path)
 
 
-    def init_state_tracker(self):
-        state_tracker = StateTracker(self.encoder_size, fbrowser.graph,one_hot=self.one_hot)
+    def init_state_tracker(self,data):
+        state_tracker = StateTracker(self.encoder_size, fbrowser.graph,one_hot=self.one_hot,data=data)
         return state_tracker
 
-    def reinit_state_tracker(self):
-        self.state_tracker.reset(self.encoder_size,fbrowser.graph,one_hot=self.one_hot)
+    def reinit_state_tracker(self,data):
+        self.state_tracker.reset(self.encoder_size,fbrowser.graph,one_hot=self.one_hot,data=data)
 
 
 if __name__ == '__main__':

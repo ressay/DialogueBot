@@ -17,64 +17,67 @@ prefix1 = "http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology
 
 # CLASSES #
 
+Move_file = URIRef(prefix1+"Move_file")
 RegFile = URIRef(prefix1+"RegFile")
-Create_file = URIRef(prefix1+"Create_file")
-File = URIRef(prefix1+"File")
-A_request = URIRef(prefix1+"A_request")
-User = URIRef(prefix1+"User")
-Act_parameter = URIRef(prefix1+"Act_parameter")
-Open_file = URIRef(prefix1+"Open_file")
-Dialogue_act = URIRef(prefix1+"Dialogue_act")
-User_act = URIRef(prefix1+"User_act")
 Desire = URIRef(prefix1+"Desire")
-Agent = URIRef(prefix1+"Agent")
-U_request = URIRef(prefix1+"U_request")
-Directory = URIRef(prefix1+"Directory")
-Agent_act = URIRef(prefix1+"Agent_act")
-U_inform = URIRef(prefix1+"U_inform")
-A_ask = URIRef(prefix1+"A_ask")
 A_inform = URIRef(prefix1+"A_inform")
-Change_directory = URIRef(prefix1+"Change_directory")
+A_request = URIRef(prefix1+"A_request")
+A_ask = URIRef(prefix1+"A_ask")
+Open_file = URIRef(prefix1+"Open_file")
+User = URIRef(prefix1+"User")
 Dialogue = URIRef(prefix1+"Dialogue")
 Agent_action = URIRef(prefix1+"Agent_action")
+Create_file = URIRef(prefix1+"Create_file")
+Act_parameter = URIRef(prefix1+"Act_parameter")
+User_act = URIRef(prefix1+"User_act")
+U_request = URIRef(prefix1+"U_request")
+Directory = URIRef(prefix1+"Directory")
+Agent = URIRef(prefix1+"Agent")
+Copy_file = URIRef(prefix1+"Copy_file")
+U_inform = URIRef(prefix1+"U_inform")
+File = URIRef(prefix1+"File")
 Delete_file = URIRef(prefix1+"Delete_file")
+Rename_file = URIRef(prefix1+"Rename_file")
+Dialogue_act = URIRef(prefix1+"Dialogue_act")
+Change_directory = URIRef(prefix1+"Change_directory")
+Agent_act = URIRef(prefix1+"Agent_act")
 
 
 # RELATIONS #
 
-# relation's domains: Dialogue
-# relation's ranges: Dialogue_act
-contains_act = URIRef(prefix1+"contains_act")
-# relation's domains: RegFile
-# relation's ranges: string
-has_extension = URIRef(prefix1+"has_extension")
-# relation's domains: Directory
-# relation's ranges: File
-contains_file = URIRef(prefix1+"contains_file")
-# relation's domains: File
-# relation's ranges: Literal
-has_name = URIRef(prefix1+"has_name")
-# relation's domains: Dialogue_act
-# relation's ranges: Dialogue_act
-next_act = URIRef(prefix1+"next_act")
+# relation's domains: User
+# relation's ranges: Agent_action
+deny = URIRef(prefix1+"deny")
 # relation's domains: User
 # relation's ranges: User_act
 u_acted = URIRef(prefix1+"u_acted")
+# relation's domains: Directory
+# relation's ranges: File
+contains_file = URIRef(prefix1+"contains_file")
 # relation's domains: Change_directory
 # relation's ranges: Directory
 change_dir_to = URIRef(prefix1+"change_dir_to")
-# relation's domains: User
-# relation's ranges: Desire
-has_desire = URIRef(prefix1+"has_desire")
+# relation's domains: Dialogue_act
+# relation's ranges: Dialogue_act
+next_act = URIRef(prefix1+"next_act")
+# relation's domains: Dialogue
+# relation's ranges: Dialogue_act
+contains_act = URIRef(prefix1+"contains_act")
+# relation's domains: Dialogue_act
+# relation's ranges: Act_parameter
+has_parameter = URIRef(prefix1+"has_parameter")
 # relation's domains: Agent
 # relation's ranges: Agent_act
 a_acted = URIRef(prefix1+"a_acted")
 # relation's domains: User
-# relation's ranges: Agent_action
-confirm = URIRef(prefix1+"confirm")
-# relation's domains: Dialogue_act
-# relation's ranges: Act_parameter
-has_parameter = URIRef(prefix1+"has_parameter")
+# relation's ranges: Desire
+has_desire = URIRef(prefix1+"has_desire")
 # relation's domains: User
 # relation's ranges: Agent_action
-deny = URIRef(prefix1+"deny")
+confirm = URIRef(prefix1+"confirm")
+# relation's domains: File
+# relation's ranges: Literal
+has_name = URIRef(prefix1+"has_name")
+# relation's domains: RegFile
+# relation's ranges: string
+has_extension = URIRef(prefix1+"has_extension")

@@ -40,7 +40,7 @@ class StateTracker(object):
     triplet_size = 2 * node_size + edge_size
     hidden_state = 1024
 
-    def __init__(self, size, ontology, one_hot=True, lazy_encoding=True) -> None:
+    def __init__(self, size, ontology, one_hot=True, lazy_encoding=True, data= None) -> None:
         """
         StateTracker constructor
         :param (int) size:
@@ -70,7 +70,7 @@ class StateTracker(object):
         }
         self.triplets_to_transform = []
 
-    def reset(self, size, ontology, one_hot=True, lazy_encoding=True):
+    def reset(self, size, ontology, one_hot=True, lazy_encoding=True, data=None):
         self.cursor = 0
         # encoder = self.load_encoder(one_hot)
         # if encoder is not None:
@@ -213,6 +213,9 @@ class StateTracker(object):
         self.graph.add_all(triplets)
         self.ontology += triplets
         self.update_inner_state(triplets)
+
+    def get_data(self):
+        return {}
 
     def update_inner_state(self, triplets):
         """

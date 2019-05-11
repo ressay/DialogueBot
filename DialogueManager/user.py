@@ -68,9 +68,9 @@ class UserAgent:
     def start_conversation(self):
         assert self.user_sim, 'User simulator not defined'
         mask = UserSimulatorFB.CURRENT_TREE | UserSimulatorFB.SIMILARITY | UserSimulatorFB.GOAL_DIR \
-        | UserSimulatorFB.SUB_GOALS
+        | UserSimulatorFB.SUB_GOALS | UserSimulatorFB.GOAL_TREE
         user_sim.debug_add(mask)
-        response = self.user_sim.reset()
+        response = self.user_sim.reset(self.state_tracker.get_data())
         print(response)
         while True:
             response, reward, done, success = self.user_sim.step(self.return_response(response))
@@ -84,8 +84,9 @@ class UserAgent:
                     print('failure')
                 print('******')
                 print('starting new conversation')
-                response = self.user_sim.reset()
-                self.state_tracker = StateTrackerFB(1,fbrowser.graph)
+                self.state_tracker = StateTrackerFB(1, fbrowser.graph)
+                response = self.user_sim.reset(self.state_tracker.get_data())
+
                 print(response)
 
 if __name__ == '__main__':

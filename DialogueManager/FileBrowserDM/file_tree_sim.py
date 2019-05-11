@@ -1,3 +1,4 @@
+import os
 import random
 from rdflib import Graph, BNode, Literal
 import Ontologies.python_from_ontology as onto
@@ -8,6 +9,8 @@ DIR = 0
 
 
 class FileTreeSimulator(object):
+    home = os.environ['HOME']
+
     def __init__(self, tree=None, name='~', parent=None) -> None:
         """
         creates a simulator of a file tree (add/delete/move/copy actions)
@@ -72,6 +75,97 @@ class FileTreeSimulator(object):
                 countf, countd = counts
                 l['sub_tree'] = sub_tree
         return tree
+
+    def get_random_file(self, files=None):
+        if files is None:
+            files = self.get_all_files()
+        if len(files) == 0:
+            return None
+        r = random.randint(0, len(files)-1)
+        return files[r]
+
+    def random_modifications(self):
+
+        todel = random.randint(0, int(self.r_size()/2))
+        for i in range(todel):
+            file = self.get_random_file()
+            if file is None:
+                break
+            f, m = file
+            self.remove_file(m['name'],m['tree_sim'].path(True))
+        rdir = self.get_random_directory()
+        psize = rdir.r_size()
+        rdir.addAll_tree(rdir.generate_random_tree())
+        newSize = rdir.r_size() - psize
+        return newSize + todel
+
+    def random_copy_modif(self):
+        dirs = self.get_all_directories()
+        rfiles = self.get_all_regular_files()
+        d = self.get_random_file(dirs)
+        f = self.get_random_file(rfiles)
+        if d is None or f is None:
+            return None
+        _, f = f
+        _, d = d
+        origin = f['tree_sim'].path(True)
+        dest = d['tree_sim'].path()
+        file_name = f['name']
+        self.copy_file(file_name,origin,dest)
+        return {'file_name':file_name, 'origin': origin, 'dest': dest}
+
+    def random_move_modif(self):
+        dirs = self.get_all_directories()
+        rfiles = self.get_all_regular_files()
+        d = self.get_random_file(dirs)
+        f = self.get_random_file(rfiles)
+        if d is None or f is None:
+            return None
+        o, d = d
+        _, f = f
+        origin = f['tree_sim'].path(True)
+        dest = d['tree_sim'].path()
+        if dest == origin:
+            print([m['tree_sim'].path() for f,m in dirs])
+            print('old dest ', dest)
+            print('got here with len dirs ',len(dirs))
+            dirs.remove((o, d))
+            print('new len ', len(dirs))
+            print([m['tree_sim'].path() for f, m in dirs])
+            d = self.get_random_file(dirs)
+            if d is None:
+                return None
+            _, d = d
+            dest = d['tree_sim'].path()
+            print('new dest ',dest)
+        file_name = f['name']
+        self.move_file(file_name, origin, dest)
+        return {'file_name': file_name, 'origin': origin, 'dest': dest}
+
+    def get_all_files(self):
+        files = []
+        for f, m in self.tree():
+            files.append((f, m))
+            if not f:
+                files += m['tree_sim'].get_all_files()
+        return files
+
+    def get_all_directories(self):
+        dirs = []
+        for f, m in self.tree():
+            if not f:
+                dirs.append((f, m))
+                dirs += m['tree_sim'].get_all_directories()
+        return dirs
+
+    def get_all_regular_files(self):
+        dirs = []
+        for f, m in self.tree():
+            if f:
+                dirs.append((f, m))
+            else:
+                dirs += m['tree_sim'].get_all_regular_files()
+        return dirs
 
     def create_rdfgraph_from_tree(self, tree, parent=None):
         """
@@ -199,7 +293,7 @@ class FileTreeSimulator(object):
                 elif 'tree_sim' in l:
                     m['tree_sim'].addAll_tree(l['tree_sim'].tree())
 
-    def create_path(self,path):
+    def create_path(self, path):
         p = self.path()
         if path[:len(p)] == p:
             path = path[len(p):]
@@ -209,16 +303,40 @@ class FileTreeSimulator(object):
         if not len(dirs):
             return
         if not self.contains_file(dirs[0]):
-            f,m = self.add_file(dirs[0],DIR)
+            f, m = self.add_file(dirs[0], DIR)
         else:
             f, m = self.get_file_by_name(dirs[0])
         for name in dirs[1:]:
             if not m['tree_sim'].contains_file(name):
-                f,m = m['tree_sim'].add_file(name,DIR)
+                f, m = m['tree_sim'].add_file(name, DIR)
             else:
-                f,m = m['tree_sim'].get_file_by_name(name)
+                f, m = m['tree_sim'].get_file_by_name(name)
 
-    def add_file(self, file_name, t, p=None,create_path=False):
+    def copy_file(self, file_name, origin, dest):
+        if len(origin) != 0 and origin[-1] != '/':
+            origin += '/'
+        if len(dest) != 0 and dest[-1] != '/':
+            dest += '/'
+        f, m = self.get_file_dict_from_path(origin + file_name)
+        tree_sim = m['tree_sim'].copy()
+        f2, m2 = self.add_file(file_name, f, dest, True)
+        tree_sim.parent = m2['tree_sim'].parent
+        m2['tree_sim'] = tree_sim
+        for key in m:
+            if key == 'tree_sim': continue
+            m2[key] = m[key]
+
+        return f2, m2
+
+    def move_file(self, file_name, origin, dest):
+        assert dest != origin, 'destination "'+dest+'" path is same as origin "'+origin+'"'
+        if len(origin) != 0 and origin[-1] != '/': origin += '/'
+        path = origin + file_name
+        assert dest[:min((len(path), len(dest)))] != path, 'destination "'+dest+'" path is inside origin "'+origin+'"'
+        self.copy_file(file_name, origin, dest)
+        self.remove_file(file_name, origin)
+
+    def add_file(self, file_name, t, p=None, create_path=False):
         if not p:
             tree_map = self.tree_map
             parent_node = self.parent_node
@@ -235,6 +353,8 @@ class FileTreeSimulator(object):
                 return parent.add_file(file_name, t)
         file_data = (t, {'tree_sim': FileTreeSimulator([], file_name, self),
                          'name': file_name, 'parent': self})
+        if file_name in tree_map:
+            return tree_map[file_name]
         tree_map[file_name] = file_data
         # self.add_to_ontology(t, file_name, file_data[1], parent_node)
         return file_data
@@ -287,15 +407,21 @@ class FileTreeSimulator(object):
     def get_random_directory(self):
         if not self.size():
             return self
-        p1 = 0.33
-        p2 = 2.0 / self.size()
-        for f, m in self.tree():
-            r = random.uniform(0, 1)
-            if not f and r < p2:
-                if random.uniform(0, 1) < p1:
-                    return m['tree_sim']
-                return m['tree_sim'].get_random_directory()
-        return self
+        # p1 = 0.33
+        # p2 = 2.0 / self.size()
+        # for f, m in self.tree():
+        #     r = random.uniform(0, 1)
+        #     if not f and r < p2:
+        #         if random.uniform(0, 1) < p1:
+        #             return m['tree_sim']
+        #         return m['tree_sim'].get_random_directory()
+        dirs = self.get_all_directories()
+        d = self.get_random_file(dirs)
+        if d is None:
+            return self
+        if random.randint(0,len(dirs)) == 0:
+            return self
+        return d[1]['tree_sim']
 
     def tree(self):
         return list(self.tree_map.values())
@@ -305,15 +431,17 @@ class FileTreeSimulator(object):
 
     def r_size(self):
         total = self.size()
-        for f,m in self.tree():
+        for f, m in self.tree():
             if not f:
                 total += m['tree_sim'].r_size()
         return total
 
-    def path(self):
+    def path(self, is_file=False):
         if self.parent is None:
             return self.name + '/'
-        return self.parent.path() + self.name + '/'
+        if not is_file:
+            return self.parent.path() + self.name + '/'
+        return self.parent.path()
 
     def print_ontology(self):
         for s, p, o in self.graph:
@@ -322,7 +450,7 @@ class FileTreeSimulator(object):
     def print_tree(self, tree=None, offset='->'):
         if tree is None:
             tree = self.tree()
-            print("root:")
+            print(self.name + ":")
         for f, m in tree:
             print(offset, m['name'])
             if not f:
@@ -331,41 +459,78 @@ class FileTreeSimulator(object):
     def copy(self):
         return FileTreeSimulator(self.tree(), name=self.name, parent=self.parent)
 
+    @staticmethod
+    def equal_paths(p1, p2):
+        if len(p1) == len(p2) and len(p2) == 0:
+            return True
+        if len(p1) != len(p2):
+            return False
+        if p1[-1] == '/':
+            p1 = p1[:-1]
+        if p2[-1] == '/':
+            p2 = p2[:-1]
+        return p1 == p2
+
+    @staticmethod
+    def read_existing_dirs(max_depth=3, directory=None, depth=0, parent=None, max_per_dir=4):
+        if directory is None:
+            directory = FileTreeSimulator.home
+        if max_depth == depth:
+            return FileTreeSimulator([], name=directory, parent=parent)
+        root = FileTreeSimulator([], name=directory, parent=parent)
+        dirs = os.listdir(root.path())
+        i = 0
+        for d in dirs:
+            if i == max_per_dir:
+                break
+            if d[0] == '.':
+                continue
+            p = root.path() + d
+            if os.path.isfile(p):
+                root.add_file(d, 1)
+                i += 1
+            elif os.path.isdir(p):
+                f, m = root.add_file(d, 0)
+                m['tree_sim'] = FileTreeSimulator.read_existing_dirs(max_depth, d, depth + 1, root, max_per_dir)
+                i += 1
+        return root
+
 
 if __name__ == '__main__':
-    sim1 = FileTreeSimulator([])
-    sim2 = FileTreeSimulator([])
-    sim1.add_file('my_file', FILE)
-    sim1.add_file('direct', DIR)
-    print(sim2.get_first_dissimilarity(sim1))
-    sim2.add_file('my_file', FILE)
-    print(sim1.get_first_dissimilarity(sim2))
-    sim2.add_file('direct', DIR)
-    print(sim1.get_first_dissimilarity(sim2))
-    f, m = sim1.add_file('ff', FILE, '~/direct/')
-    sim1.print_tree()
-    print(sim1.get_first_dissimilarity(sim2))
-    print(m['tree_sim'].path())
-    print(sim1.lookup_file_name('ff'))
-
-    sim1_copy = sim1.copy()
-    sim1_copy.add_file('khobz', DIR, "~/")
-    sim1.print_tree()
-    sim1_copy.print_tree()
-    print(sim1_copy.r_size())
-    sim1.print_tree()
-    sim1.create_path('lala/lolo/lili')
-    sim1.print_tree()
-    sim1.add_file('newf',1,'lala/haha',True)
-    sim1.print_tree()
-    # sim1.print_ontology()
-    # sim1.remove_file('my_file')
+    # sim1 = FileTreeSimulator([])
+    # sim2 = FileTreeSimulator([])
+    # sim1.add_file('my_file', FILE)
+    # sim1.add_file('direct', DIR)
+    # print(sim2.get_first_dissimilarity(sim1))
+    # sim2.add_file('my_file', FILE)
+    # print(sim1.get_first_dissimilarity(sim2))
+    # sim2.add_file('direct', DIR)
+    # print(sim1.get_first_dissimilarity(sim2))
+    # f, m = sim1.add_file('ff', FILE, '~/direct/')
     # sim1.print_tree()
-    # sim1.print_ontology()
-    # print(sim1.generate_random_tree())
-    # sim3 = FileTreeSimulator()
-    # sim3.print_tree()
-    # sim4 = FileTreeSimulator()
-    # sim4.print_tree()
-    # print(sim3.tree_similarity(sim4))
-    # sim3.print_ontology()
+    # print(sim1.get_first_dissimilarity(sim2))
+    # print(m['tree_sim'].path())
+    # print(sim1.lookup_file_name('ff'))
+    #
+    # sim1_copy = sim1.copy()
+    # sim1_copy.add_file('khobz', DIR, "~/")
+    # sim1.print_tree()
+    # sim1_copy.print_tree()
+    # print(sim1_copy.r_size())
+    # sim1.print_tree()
+    # sim1.create_path('lala/lolo/lili')
+    # sim1.print_tree()
+    # sim1.add_file('newf',1,'lala/haha',True)
+    # f,m = sim1.lookup_file_name('newf')
+    # print(m['tree_sim'].path(True))
+    tree = FileTreeSimulator.read_existing_dirs(max_depth=2,max_per_dir=2,directory=FileTreeSimulator.home)
+    # tree.print_tree()
+    tree2 = tree.copy()
+    tree2.copy_file('Videos','','Public')
+    tree.print_tree()
+    tree2.print_tree()
+    tree2.add_file('ya',1,'Public/khobz',True)
+    tree2.copy_file('khobz','Public','Public/khobz')
+    tree2.print_tree()
+    print(tree2.random_modifications())
+    tree2.print_tree()

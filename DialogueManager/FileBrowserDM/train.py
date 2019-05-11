@@ -119,7 +119,7 @@ def episode_reset():
     Resets the episode/conversation in the warmup and training loops.
     Called in warmup and train to reset the state tracker, user and agent. Also get's the initial user action.
     """
-    user_action = user.reset()
+    user_action = user.reset(dqn_agent.state_tracker.get_data())
     dqn_agent.reset(user_action)
 
 
@@ -128,7 +128,7 @@ train_run()
 
 def simulate():
     done = False
-    user_action = user.reset()
+    user_action = user.reset(dqn_agent.state_tracker.get_data())
     print('user: ', user_action)
     dqn_agent.reset(user_action)
     while not done:

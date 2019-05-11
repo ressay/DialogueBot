@@ -26,7 +26,7 @@ class UserSimulator:
     def generate_goal(self):
         return {}
 
-    def reset(self):
+    def reset(self, data):
         """
         Resets the user sim. by emptying the state and returning the initial action.
 

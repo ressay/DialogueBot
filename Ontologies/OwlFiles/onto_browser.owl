@@ -132,6 +132,11 @@
                   rdfs:subClassOf :Agent_action .
 
 
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Copy_file
+:Copy_file rdf:type owl:Class ;
+           rdfs:subClassOf :Agent_action .
+
+
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Create_file
 :Create_file rdf:type owl:Class ;
              rdfs:subClassOf :Agent_action .
@@ -164,6 +169,11 @@
       rdfs:subClassOf :Act_parameter .
 
 
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Move_file
+:Move_file rdf:type owl:Class ;
+           rdfs:subClassOf :Agent_action .
+
+
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Open_file
 :Open_file rdf:type owl:Class ;
            rdfs:subClassOf :Agent_action .
@@ -172,6 +182,11 @@
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#RegFile
 :RegFile rdf:type owl:Class ;
          rdfs:subClassOf :File .
+
+
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Rename_file
+:Rename_file rdf:type owl:Class ;
+             rdfs:subClassOf :Agent_action .
 
 
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#U_inform
