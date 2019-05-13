@@ -4,7 +4,8 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import math
 from DialogueManager.state_tracker import StateTracker
-from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking
+from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking, \
+    Conv1D, Flatten, Reshape
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
@@ -112,10 +113,18 @@ class Agent(object):
         def DQN_unit(layers, hidden):
             DQN_input = Input(shape=(action_size + hidden,))
             output = Dense(layers[0], activation='relu')(DQN_input)
+            output = Reshape((layers[0], 1))(output)
+            output = Conv1D(32, 32, activation='relu')(output)
+            output = Conv1D(64, 16, activation='relu')(output)
+            output = Conv1D(128, 8, activation='relu')(output)
+            output = Conv1D(256, 4, activation='relu')(output)
+            output = Flatten()(output)
             for layer in layers[1:]:
                 output = Dense(layer, activation='relu')(output)
             output = Dense(output_dim, activation='linear', name='output_layer')(output)
-            return Model(DQN_input, output, name='DQN_unit' + name_pre)
+            model = Model(DQN_input, output, name='DQN_unit' + name_pre)
+            # model.summary()
+            return model
 
         def repeat_vector(args):
             layer_to_repeat = args[0]
@@ -331,7 +340,7 @@ class Agent(object):
             pair = len(tr), len(ac)
         elif not self.use_graph_encoder:
             tr, ac = state
-            pair = len(tr), len(ac)
+            pair = len(tr)#, len(ac)
         else:
             st, ac = state
             pair = len(ac)
@@ -462,9 +471,10 @@ class Agent(object):
                     input_tr.append(tr)
                 else:
                     st, ac = transform(s)
+                index = a if a%2 == 0 else a-1
                 input_st.append(st)
-                input_ac.append(ac)
-                targets.append(np.array([np.array((t[i], t[i + 1])) for i in range(0, len(t), 2)]))
+                input_ac.append(np.array([ac[int(index/2)]]))
+                targets.append(np.array([np.array((t[index], t[index + 1]))]))
             # print(input_tr.shape,input_st.shape,input_ac.shape)
             input_st, input_ac, targets = [np.array(a)
                                            for a in [input_st, input_ac, targets]]

@@ -154,8 +154,9 @@ class StateTrackerFB(StateTracker):
                     self.special_actions.append({'intent': 'request', 'slot': 'file_name',
                                                  'file_node': f, 'action_node': fbrowser.A_request,
                                                  'special': 'file_not_found'})
-                for file_node in file_nodes:
-                    triplets.append((fbrowser.User,f,file_node))
+                else:
+                    for file_node in file_nodes:
+                        triplets.append((fbrowser.User,f,file_node))
             elif f is None:
                 triplets.append((fbrowser.User, fbrowser.U_inform, Literal(user_action['file_name'])))
             else:
