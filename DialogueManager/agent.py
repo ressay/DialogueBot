@@ -113,14 +113,14 @@ class Agent(object):
         def DQN_unit(layers, hidden):
             DQN_input = Input(shape=(action_size + hidden,))
             output = Dense(layers[0], activation='relu')(DQN_input)
-            output = Reshape((layers[0], 1))(output)
-            output = Conv1D(16, 32, activation='relu')(output)
-            output = Conv1D(16, 16, activation='relu')(output)
-            output = MaxPooling1D(2)(output)
-            output = Conv1D(32, 8, activation='relu')(output)
-            output = Conv1D(32, 8, activation='relu')(output)
-            output = MaxPooling1D(2)(output)
-            output = Flatten()(output)
+            # output = Reshape((layers[0], 1))(output)
+            # output = Conv1D(16, 32, activation='relu')(output)
+            # output = Conv1D(16, 16, activation='relu')(output)
+            # output = MaxPooling1D(2)(output)
+            # output = Conv1D(32, 8, activation='relu')(output)
+            # output = Conv1D(32, 8, activation='relu')(output)
+            # output = MaxPooling1D(2)(output)
+            # output = Flatten()(output)
             for layer in layers[1:]:
                 output = Dense(layer, activation='relu')(output)
             output = Dense(output_dim, activation='linear', name='output_layer')(output)
@@ -145,7 +145,7 @@ class Agent(object):
             h = self.encoder_state_size
         concat = Concatenate()([state_repeated, DQN_inputs])
 
-        outputs = TimeDistributed(DQN_unit([hidden_state, hidden_state, hidden_state],h), name='distributed' + name_pre)(
+        outputs = TimeDistributed(DQN_unit([hidden_state*3, hidden_state*2, hidden_state],h), name='distributed' + name_pre)(
             concat)
         if self.use_graph_encoder:
             model = Model([encoded_state_input,DQN_inputs],outputs)
