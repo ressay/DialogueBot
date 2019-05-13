@@ -148,7 +148,15 @@ class StateTrackerFB(StateTracker):
             f = self.get_focused_file_node(True)
             # if f == self.focused_file['node']:
             #     self.update_focused_file({'file_name': user_action['file_name']})
-            if f is None:
+            if f in (fbrowser.Change_directory, fbrowser.Delete_file):
+                file_nodes = self.get_files_from_graph(user_action)
+                if file_nodes is None:
+                    self.special_actions.append({'intent': 'request', 'slot': 'file_name',
+                                                 'file_node': f, 'action_node': fbrowser.A_request,
+                                                 'special': 'file_not_found'})
+                for file_node in file_nodes:
+                    triplets.append((fbrowser.User,f,file_node))
+            elif f is None:
                 triplets.append((fbrowser.User, fbrowser.U_inform, Literal(user_action['file_name'])))
             else:
                 triplets.append((f, fbrowser.has_name, Literal(user_action['file_name'])))
@@ -334,7 +342,7 @@ class StateTrackerFB(StateTracker):
     #
     def get_focused_file_node(self, file_name_debug=False):
         prev = self.state_map['last_agent_action']
-        if prev['intent'] == 'request' and 'special' not in prev:
+        if prev['intent'] == 'request':
             return prev['file_node']
         # if file_name_debug:
         #     print('problem should come after a request but didnt')
@@ -543,7 +551,7 @@ class StateTrackerFB(StateTracker):
                      ]
             if not len(nodes):
                 return None
-        return nodes
+        return set(nodes)
 
     def get_file_from_graph(self, file_info):
         """
