@@ -287,4 +287,5 @@ class StateTracker(object):
 
 if __name__ == '__main__':
     state = StateTracker(5, fbrowser.graph)
-    print(state.transform_triplets_rdf_to_encoding(fbrowser.graph.triples()).shape)
+    # print(state.transform_triplets_rdf_to_encoding(fbrowser.graph.triples()).shape)
+

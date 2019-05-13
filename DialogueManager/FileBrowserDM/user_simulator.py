@@ -160,7 +160,7 @@ class UserSimulatorFB(UserSimulator):
             return -3
         # if confirming an action for agent, reward is neutral
         if self.state['current_uAction']['intent'] == self.confirm:
-            return -0.5
+            return 0
         return -1
 
     def apply_agent_tree_action(self, agent_action, f_sim):

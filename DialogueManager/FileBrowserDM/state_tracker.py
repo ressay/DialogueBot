@@ -465,6 +465,7 @@ class StateTrackerFB(StateTracker):
         if node == self.root:
             return self.root
         assert node in self.parent, "PATH FROM NODE ERROR: node has no parent directory"
+        #TODO fix error that is happening here
         assert self.file_type[self.parent[node]] == fbrowser.Directory, 'TYPE OF PARENT IS NOT DIRECTORY BUT: ' + \
                                                                         str(self.file_type[self.parent[node]])
         file_name = self.name_by_node[node]
