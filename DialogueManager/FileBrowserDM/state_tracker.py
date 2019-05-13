@@ -93,17 +93,9 @@ class StateTrackerFB(StateTracker):
                                         'new_directory': self.get_path_of_file_node(key),
                                         'file_node': key, 'action_node': fbrowser.Change_directory})
                 else:
-                    if is_file == -1:
-                        actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': 0,
-                                        'path': self.get_path_of_file_node(key, False), 'file_node': key,
-                                        'action_node': fbrowser.Create_file})
-                        actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': 1,
-                                        'path': self.get_path_of_file_node(key, False), 'file_node': key,
-                                        'action_node': fbrowser.Create_file})
-                    else:
-                        actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
-                                        'path': self.get_path_of_file_node(key, False), 'file_node': key,
-                                        'action_node': fbrowser.Create_file})
+                    actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
+                                    'path': self.get_path_of_file_node(key, False), 'file_node': key,
+                                    'action_node': fbrowser.Create_file})
                     actions.append({'intent': 'request', 'slot': 'parent_directory',
                                     'file_name': value, 'file_node': key, 'action_node': fbrowser.A_request})
             else:
@@ -226,7 +218,7 @@ class StateTrackerFB(StateTracker):
                     for parent_dir in parent_dirs:
                         if self.file_type[parent_dir] == fbrowser.Directory:
                             triplets.append((parent_dir, fbrowser.contains_file, file_node))
-            triplets.append((desire, fbrowser.has_parameter, file_node))
+            triplets.append((fbrowser.User, desire, file_node))
             return triplets
         # if delete or change directory and file not found, special action to re ask for file name
         elif file_nodes is None:
@@ -244,7 +236,7 @@ class StateTrackerFB(StateTracker):
         # triplets.append((fbrowser.User, fbrowser.has_desire, d))
 
         for file_node in file_nodes:
-            triplets.append((desire, fbrowser.has_parameter, file_node))
+            triplets.append((fbrowser.User, desire, file_node))
         if len(file_nodes) > 1:
             self.special_actions.append({'intent': 'request', 'slot': 'parent_directory',
                                      'file_name': user_action['file_name'],
@@ -265,11 +257,10 @@ class StateTrackerFB(StateTracker):
     def ask_triplets_a(self, agent_action):
         triplets = []
         assert 'ask' == agent_action['intent'], "intent not ask in ask triplets agent method"
-        ask_node = BNode()
-        agent_action['action_node'] = ask_node
-        triplets.append((ask_node, onto.rdf_type, fbrowser.A_ask))
+        agent_action['action_node'] = fbrowser.A_ask
+        # triplets.append((ask_node, onto.rdf_type, fbrowser.A_ask))
         # TODO FIX ACTION_NODE
-        triplets.append((ask_node, fbrowser.has_parameter, agent_action['action']['action_node']))
+        triplets.append((fbrowser.A_ask, fbrowser.has_parameter, agent_action['action']['action_node']))
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, ask_node))
         return triplets
 
@@ -278,7 +269,7 @@ class StateTrackerFB(StateTracker):
         # req_node = BNode()
         # triplets.append((req_node, onto.rdf_type, fbrowser.A_request))
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, req_node))
-        triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.A_request))
+        # triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.A_request))
         return triplets
 
     def create_file_triplets_a(self, agent_action):
