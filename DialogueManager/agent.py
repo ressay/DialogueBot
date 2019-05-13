@@ -5,7 +5,7 @@ from keras.preprocessing.sequence import pad_sequences
 import math
 from DialogueManager.state_tracker import StateTracker
 from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking, \
-    Conv1D, Flatten, Reshape
+    Conv1D, Flatten, Reshape, MaxPooling1D
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
@@ -114,16 +114,18 @@ class Agent(object):
             DQN_input = Input(shape=(action_size + hidden,))
             output = Dense(layers[0], activation='relu')(DQN_input)
             output = Reshape((layers[0], 1))(output)
-            output = Conv1D(32, 32, activation='relu')(output)
-            output = Conv1D(64, 16, activation='relu')(output)
-            output = Conv1D(128, 8, activation='relu')(output)
-            output = Conv1D(256, 4, activation='relu')(output)
+            output = Conv1D(16, 32, activation='relu')(output)
+            output = Conv1D(16, 16, activation='relu')(output)
+            output = MaxPooling1D(2)(output)
+            output = Conv1D(32, 8, activation='relu')(output)
+            output = Conv1D(32, 8, activation='relu')(output)
+            output = MaxPooling1D(2)(output)
             output = Flatten()(output)
             for layer in layers[1:]:
                 output = Dense(layer, activation='relu')(output)
             output = Dense(output_dim, activation='linear', name='output_layer')(output)
             model = Model(DQN_input, output, name='DQN_unit' + name_pre)
-            # model.summary()
+            model.summary()
             return model
 
         def repeat_vector(args):
