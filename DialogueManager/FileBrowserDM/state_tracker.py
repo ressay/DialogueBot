@@ -39,6 +39,7 @@ class StateTrackerFB(StateTracker):
         self.special_actions = []
         self.root = None
         self.current_path_node, self.current_path = None, None
+        self.last_user_action = None
         if data is not None:
             self.add_known_files_to_graph(data['tree_sim'])
         else:
@@ -80,20 +81,27 @@ class StateTrackerFB(StateTracker):
         def ask_action(act):
             return {'intent': 'ask', 'action': act}
 
+        ignore_change_dir = ['Delete_file_desire', 'Create_file_desire']
+        ignore_delete = ['Change_directory_desire', 'Create_file_desire']
+        ignore_create = ['Delete_file_desire', 'Change_directory_desire']
+        u_intent = self.last_user_action['intent']
         for key in self.parent:
             if key in self.name_by_node:
                 value = self.name_by_node[key]
                 is_file = is_file_map[self.file_type[key]]
                 if key in self.file_exists:
-                    actions.append({'intent': 'Delete_file', 'file_name': value,
+                    if u_intent not in ignore_delete:
+                        actions.append({'intent': 'Delete_file', 'file_name': value,
                                     'path': self.get_path_of_file_node(key, False),
                                     'action_node': fbrowser.Delete_file, 'file_node': key})
-                    if self.file_type[key] == fbrowser.Directory:
+
+                    if self.file_type[key] == fbrowser.Directory and u_intent not in ignore_change_dir:
                         actions.append({'intent': 'Change_directory',
                                         'new_directory': self.get_path_of_file_node(key),
                                         'file_node': key, 'action_node': fbrowser.Change_directory})
                 else:
-                    actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
+                    if u_intent not in ignore_create:
+                        actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
                                     'path': self.get_path_of_file_node(key, False), 'file_node': key,
                                     'action_node': fbrowser.Create_file})
                     actions.append({'intent': 'request', 'slot': 'parent_directory',
@@ -133,6 +141,7 @@ class StateTrackerFB(StateTracker):
         :param (dict) user_action:
         :return (list): list of triplets from user's action
         """
+        self.last_user_action = user_action
         return self.user_actions_map[user_action['intent']](user_action)
 
     def default(self, user_action):
