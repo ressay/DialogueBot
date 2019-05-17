@@ -184,6 +184,7 @@ class StateTrackerFB(StateTracker):
             dest = user_action['dest']
             dest_nodes = self.get_files_from_graph({'file_name': dest})
             if dest_nodes is not None:
+                dest_nodes = [n for n in dest_nodes if self.file_type[n] == fbrowser.Directory]
                 self.special_nodes[node] = (desire, list(dest_nodes))
         else:
             self.special_nodes[node] = (desire, dests)
@@ -435,8 +436,6 @@ class StateTrackerFB(StateTracker):
 
         triplets.append((newNode, onto.rdf_type, t))
         triplets.append((newNode, fbrowser.has_name, Literal(name)))
-        if dest not in self.parent:
-            print('error here indeeeed damn')
         triplets.append((dest, fbrowser.contains_file, newNode))
         self.add_triplets(triplets)
         result = self.add_file_existence(newNode)
@@ -541,9 +540,10 @@ class StateTrackerFB(StateTracker):
             for c in self.children[p]:
                 if c not in self.name_by_node:
                     continue
-                if c != file_node and self.name_by_node[c] == self.name_by_node[file_node] and c in self.file_exists:
+                if c != file_node and self.name_by_node[c] == self.name_by_node[file_node] \
+                        and c in self.file_exists and self.file_type[file_node] == self.file_type[c]:
                     if first:
-                        return (file_node, c)
+                        return file_node, c
                     else:
                         return [c]
                         # if not self.set_file_in_inner_state(file_node,c):
@@ -620,7 +620,7 @@ class StateTrackerFB(StateTracker):
         :return:
         """
         if node == self.root:
-            return self.root
+            return self.name_by_node[self.root]
         assert node in self.parent, "PATH FROM NODE ERROR: node has no parent directory node: " + str(node) +\
                                     ' name: ' + str(self.name_by_node[node])
         # TODO fix error that is happening here
@@ -694,7 +694,6 @@ class StateTrackerFB(StateTracker):
 
     def set_file_type(self, s, o):
         self.file_type[s] = o
-
 
     def change_directory(self, path):
         dirs = path.split('/')
