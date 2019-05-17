@@ -268,7 +268,7 @@ class StateTrackerFB(StateTracker):
                     new_special = dict((node, self.special_nodes[node]) for node in self.special_nodes
                                        if self.parent[node] in t)
                     self.special_nodes = new_special
-                else:
+                elif f in self.parent:
                     for directory in t:
                         if self.file_type[directory] == fbrowser.Directory:
                             triplets.append((directory, fbrowser.contains_file, f))
