@@ -594,6 +594,10 @@ class StateTrackerFB(StateTracker):
             self.nodes_by_name[name].remove(file_node)
             if file_node in self.special_nodes:
                 del self.special_nodes[file_node]
+            for node in self.special_nodes:
+                _, dests = self.special_nodes[node]
+                if file_node in dests:
+                    dests.remove(file_node)
 
 
 
