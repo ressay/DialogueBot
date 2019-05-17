@@ -107,7 +107,7 @@ class StateTrackerFB(StateTracker):
                                     'slot': 'dest', 'action_node': fbrowser.A_request, 'file_node': node})
                 else:
                     for dest in dests:
-                        if dest != self.parent[node]:
+                        if dest != self.parent[node] and node in self.file_exists:
                             actions.append({'intent': intent, 'file_name': self.name_by_node[node],
                                             'origin': self.get_path_of_file_node(node, False),
                                             'dest': self.get_path_of_file_node(dest), 'action_node': dest,
