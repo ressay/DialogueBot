@@ -107,7 +107,7 @@ class Agent(object):
         _, encoder_state = CuDNNGRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
-                               reset_after=True,
+                               # reset_after=True,
                                name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
 
         def DQN_unit(layers, hidden):
