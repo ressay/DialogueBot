@@ -39,7 +39,7 @@ class UserSimulatorFB(UserSimulator):
             ontology (rdflib.Graph): ontology graph
         """
         super().__init__(constants, ontology)
-        self.agent_tree_actions = ["Create_file", "Delete_file"]
+        self.agent_tree_actions = ["Create_file", "Delete_file","Copy_file","Move_file"]
         for a in self.agent_tree_actions:
             self.user_responses[a] = self._build_response
         self.user_responses['Change_directory'] = self._build_response
@@ -47,7 +47,7 @@ class UserSimulatorFB(UserSimulator):
         self.user_responses['ask'] = self._ask_response
         self.user_responses['request'] = self._req_response
         self.debug = 0
-        self.subgoal_reward = 0
+        self.subgoal_reward = None
 
     def generate_goal(self):
         goal_tree = self.state['current_file_tree'].copy()
@@ -131,7 +131,7 @@ class UserSimulatorFB(UserSimulator):
                     user_response = self._end_response()
                 else:
                     agent_intent = agent_action['intent']
-                    assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
+                    assert agent_intent in self.user_responses, 'Not acceptable agent action'
                     user_response = self.user_responses[agent_intent](agent_action)
             # except Exception as e:
             #     print('ERROR HAPPENED AND IGNORING IT: ', e)
@@ -148,9 +148,9 @@ class UserSimulatorFB(UserSimulator):
             reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
             if reward:
                 return reward
-        if self.subgoal_reward:
+        if self.subgoal_reward is not None:
             reward = self.subgoal_reward
-            self.subgoal_reward = 0
+            self.subgoal_reward = None
             return reward
         f, t = self.state['current_similarity']
         pf, pt = self.state['previous_similarity']
@@ -176,6 +176,10 @@ class UserSimulatorFB(UserSimulator):
             f_sim.add_file(agent_action['file_name'], agent_action['is_file'], agent_action['path'], True)
         elif intent == 'Delete_file':
             f_sim.remove_file(agent_action['file_name'], agent_action['path'])
+        elif intent == 'Move_file':
+            f_sim.move_file(agent_action['file_name'], agent_action['origin'], agent_action['dest'])
+        elif intent == 'Copy_file':
+            f_sim.copy_file(agent_action['file_name'],agent_action['origin'],agent_action['dest'])
 
     def update_sub_goals(self, agent_action):
         for sub_goal in self.goal['sub_goal']:
@@ -188,22 +192,31 @@ class UserSimulatorFB(UserSimulator):
                     self.goal['sub_goal'].remove(sub_goal)
                     self.subgoal_reward = len(sub_goal['dirs'])
             if sub_goal['name'] == 'Search_file':
-                if agent_action['intent'] == 'inform' and 'path' in agent_action:
-                    p1 = agent_action['path']
-                    f, m = self.state['current_file_tree'].lookup_file_name(sub_goal['file'])
-                    if FileTreeSimulator.equal_paths(m['tree_sim'].path(True), p1):
-                        self.subgoal_reward = 2
-                    else:
-                        self.subgoal_reward = -2
+                if agent_action['intent'] == 'inform' and 'paths' in agent_action:
+                    self.subgoal_reward = 0
+                    # p1 = agent_action['path']
+                    # f, m = self.state['current_file_tree'].lookup_file_name(sub_goal['file'])
+                    # if FileTreeSimulator.equal_paths(m['tree_sim'].path(True), p1):
+                    #     self.subgoal_reward = 2
+                    # else:
+                    #     self.subgoal_reward = -2
                     self.goal['sub_goal'].remove(sub_goal)
             if sub_goal['name'] == 'Move_file' or sub_goal['name'] == 'Copy_file':
                 if agent_action['intent'] == sub_goal['name']:
-                    keys = ['origin', 'dest', 'file']
+                    keys = ['origin', 'dest']
+                    agent_action['file'] = agent_action['file_name']
                     self.subgoal_reward = 2
                     for key in keys:
-                        if sub_goal[key] != agent_action[key]:
+                        if not FileTreeSimulator.equal_paths(sub_goal[key], agent_action[key]):
                             self.subgoal_reward = -3
                             break
+                    if agent_action['file'] != sub_goal['file']:
+                        self.subgoal_reward = -3
+                    # print('got here and reward is: ', self.subgoal_reward)
+                    # print(agent_action)
+                    # print(sub_goal)
+                    self.goal['sub_goal'].remove(sub_goal)
+                    break
 
     def sub_goal_exists(self):
         return len(self.goal['sub_goal']) > 0
@@ -231,6 +244,20 @@ class UserSimulatorFB(UserSimulator):
         self.goal['sub_goal'].append({'name': 'Search_file',
                                       'file': file})
 
+    def get_slot_from_sub_goal(self,slot):
+        if not self.sub_goal_exists():
+            return None
+        sub_goal = self.next_sub_goal()
+        if sub_goal['name'] in ('Copy_file','Move_file','Search_file'):
+            if slot == 'file_name':
+                return sub_goal['file']
+            if slot == 'dest' and 'dest' in sub_goal:
+                return FileTreeSimulator.last_dir_in_path(sub_goal['dest'])
+        elif sub_goal['name'] == 'Change_directory':
+            if slot == 'file_name':
+                return sub_goal['dirs'][0]
+        return None
+
     def generate_sub_goal_intent(self):
         sub_goal = self.next_sub_goal()
         if sub_goal['name'] == 'Change_directory':
@@ -242,12 +269,12 @@ class UserSimulatorFB(UserSimulator):
         elif sub_goal['name'] == 'Search_file':
             return {'intent': self.u_request, 'slot': 'directory', 'file_name': sub_goal['file']}
         elif sub_goal['name'] == 'Move_file' or sub_goal['name'] == 'Copy_file':
-            pO, pD, pF = 0.2, 0.2, 0.8
+            pO, pD, pF = 0.2, 0.4, 0.8
             action = {'intent': (self.Move_file_desire if sub_goal['name'] == 'Move_file' else self.Copy_file_desire)}
             if random.uniform(0, 1) < pO:
-                action['origin'] = sub_goal['origin']
+                action['origin'] = FileTreeSimulator.last_dir_in_path(sub_goal['origin'])
             if random.uniform(0, 1) < pD:
-                action['dest'] = sub_goal['dest']
+                action['dest'] = FileTreeSimulator.last_dir_in_path(sub_goal['dest'])
             if random.uniform(0, 1) < pF:
                 action['file_name'] = sub_goal['file']
             return action
@@ -270,20 +297,45 @@ class UserSimulatorFB(UserSimulator):
         :param (dict) agent_action: action of the dialogue manager
         :return (int) : 1 if success reached, 0 else wise
         """
+        p_act = self.state['previous_uAction']
+        # probabilities of copy/move, search file
+        pCM = 0.1
+        pS = 0.05
         intent = agent_action['intent']
         f_sim = self.state['current_file_tree']
         goal_sim = self.goal['goal_tree']
         self.state['previous_directory'] = self.state['current_directory']
-
         if intent in self.agent_tree_actions:
             self.apply_agent_tree_action(agent_action, f_sim)
             self.generate_next_focused_file()
+
         elif intent == 'Change_directory':
             self.state['current_directory'] = agent_action['new_directory']
         self.update_sub_goals(agent_action)
+        if intent in self.agent_tree_actions:
+            # add subgoal
+            if random.uniform(0, 1) <= pCM + pS:
+                if random.uniform(0, pCM + pS) <= pS:
+                    pass
+                    # f, m = self.state['current_file_tree'].get_random_file()
+                    #TODO ONCE FIXED IN AGENT, UNCOMMENT THIS
+                    # self.add_search_sub_goal(m['name'])
+                else:
+                    if random.uniform(0, 1) < 0.5:
+                        modif = self.state['current_file_tree'].random_copy_modif()
+                        if modif is not None and modif['origin'] != modif['dest']:
+                            self.add_copy_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
+                            self.max_round += 4
+                    else:
+                        modif = self.state['current_file_tree'].random_move_modif()
+                        if modif is not None and modif['origin'] != modif['dest']:
+                            self.add_move_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
+                            self.max_round += 8
+
         found, total = f_sim.tree_similarity(goal_sim)
         self.state['previous_similarity'] = self.state['current_similarity']
         self.state['current_similarity'] = [found, total]
+
         return 1 if found == total else 0
 
     def generate_next_focused_file(self):
@@ -404,8 +456,8 @@ class UserSimulatorFB(UserSimulator):
             intent = self.Delete_file_desire
         else:
             intent = self.Create_file_desire
-            if focused_file['file']:
-                is_file = 1
+        if focused_file['file']:
+            is_file = 1
 
         response = {'intent': intent}
         name = focused_file['map']['name']
@@ -425,9 +477,30 @@ class UserSimulatorFB(UserSimulator):
         response = self.generate_tree_desire_intent()
         return response
 
+    def _ask_sub_goal(self, agent_action):
+        if not self.sub_goal_exists():
+            return None
+        asked_action = agent_action['action']
+        sub_goal = self.next_sub_goal()
+        if asked_action['intent'] == 'Change_directory' and sub_goal['name'] == 'Change_directory' \
+                and asked_action['new_directory'] in sub_goal['dirs']:
+            return {'intent': self.confirm}
+        if asked_action['intent'] in ('Move_file','Copy_file') and sub_goal['name'] == asked_action['intent']:
+            keys = ['origin', 'dest', 'file']
+            asked_action['file'] = asked_action['file_name']
+            response = {'intent': self.confirm}
+            for key in keys:
+                if sub_goal[key] != asked_action[key]:
+                    return {'intent': self.deny}
+            return response
+        return None
+
     def _ask_response(self, agent_action):
         assert agent_action['intent'] == 'ask', 'intent is not "ask" in ask_response'
         asked_action = agent_action['action']
+        response = self._ask_sub_goal(agent_action)
+        if response is not None:
+            return response
         if asked_action['intent'] in self.agent_tree_actions:
             file_sim_copy = self.state['current_file_tree'].copy()
             self.apply_agent_tree_action(asked_action, file_sim_copy)
@@ -437,19 +510,25 @@ class UserSimulatorFB(UserSimulator):
             # print('DEBUG ASK: COPY:',f,t,' CURRENT SIM: ',pf,pt)
             if f / t > pf / pt:
                 return {'intent': self.confirm}
-        elif asked_action['intent'] == 'Change_directory':
-            if not self.sub_goal_exists():
-                return {'intent': self.deny}
-            sub_goal = self.next_sub_goal()
-            if sub_goal['name'] == 'Change_directory' \
-                    and asked_action['new_directory'] in sub_goal['dirs']:
-                return {'intent': self.confirm}
+        # elif asked_action['intent'] == 'Change_directory':
+        #     if not self.sub_goal_exists():
+        #         return {'intent': self.deny}
+        #     sub_goal = self.next_sub_goal()
+        #     if sub_goal['name'] == 'Change_directory' \
+        #             and asked_action['new_directory'] in sub_goal['dirs']:
+        #         return {'intent': self.confirm}
         return {'intent': self.deny}
+
+
 
     def _req_response(self, agent_action):
         response = {'intent': self.u_inform}
         requested = agent_action['slot']
         focused_file = self.state['focused_file']['map']
+        file_name = self.get_slot_from_sub_goal(requested)
+        if file_name is not None:
+            response['file_name'] = file_name
+            return response
         if requested == 'file_name':
             response['file_name'] = focused_file['name']
         elif requested == 'parent_directory':

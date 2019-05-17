@@ -80,7 +80,7 @@ class UserSimulator:
                     user_response = self._end_response()
                 else:
                     agent_intent = agent_action['intent']
-                    assert agent_intent in self.agent_possible_intents, 'Not acceptable agent action'
+                    assert agent_intent in self.user_responses, 'Not acceptable agent action'
                     user_response = self.user_responses[agent_intent](agent_action)
             except Exception:
                 return self._default_response(),-5,False,False

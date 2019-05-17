@@ -111,7 +111,7 @@ class FileTreeSimulator(object):
         origin = f['tree_sim'].path(True)
         dest = d['tree_sim'].path()
         file_name = f['name']
-        self.copy_file(file_name,origin,dest)
+        # self.copy_file(file_name,origin,dest)
         return {'file_name':file_name, 'origin': origin, 'dest': dest}
 
     def random_move_modif(self):
@@ -126,20 +126,14 @@ class FileTreeSimulator(object):
         origin = f['tree_sim'].path(True)
         dest = d['tree_sim'].path()
         if dest == origin:
-            print([m['tree_sim'].path() for f,m in dirs])
-            print('old dest ', dest)
-            print('got here with len dirs ',len(dirs))
             dirs.remove((o, d))
-            print('new len ', len(dirs))
-            print([m['tree_sim'].path() for f, m in dirs])
             d = self.get_random_file(dirs)
             if d is None:
                 return None
             _, d = d
             dest = d['tree_sim'].path()
-            print('new dest ',dest)
         file_name = f['name']
-        self.move_file(file_name, origin, dest)
+        # self.move_file(file_name, origin, dest)
         return {'file_name': file_name, 'origin': origin, 'dest': dest}
 
     def get_all_files(self):
@@ -463,13 +457,20 @@ class FileTreeSimulator(object):
     def equal_paths(p1, p2):
         if len(p1) == len(p2) and len(p2) == 0:
             return True
-        if len(p1) != len(p2):
+        if len(p1) == 0 or len(p2) == 0:
             return False
         if p1[-1] == '/':
             p1 = p1[:-1]
         if p2[-1] == '/':
             p2 = p2[:-1]
         return p1 == p2
+
+    @staticmethod
+    def last_dir_in_path(path):
+        path = path.split('/')
+        if path[-1] == '':
+            del path[-1]
+        return path[-1]
 
     @staticmethod
     def read_existing_dirs(max_depth=3, directory=None, depth=0, parent=None, max_per_dir=4):

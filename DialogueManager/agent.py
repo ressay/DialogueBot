@@ -5,7 +5,7 @@ from keras.preprocessing.sequence import pad_sequences
 import math
 from DialogueManager.state_tracker import StateTracker
 from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking, \
-    Conv1D, Flatten, Reshape, MaxPooling1D
+    Conv1D, Flatten, Reshape, MaxPooling1D, LSTMCell
 from keras.models import Model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
@@ -104,10 +104,10 @@ class Agent(object):
         encoder_state_input = Input(shape=(hidden_state,), name='encoder_state_input' + name_pre)
         # DQN_input = Input(shape=(triplet_size,))
         DQN_inputs = Input(shape=(None, action_size), name='dqn_inputs' + name_pre)
-        _, encoder_state = CuDNNGRU(hidden_state,
+        _, encoder_state = GRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
-                               # reset_after=True,
+                               reset_after=True,
                                name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
 
         def DQN_unit(layers, hidden):
@@ -125,7 +125,7 @@ class Agent(object):
                 output = Dense(layer, activation='relu')(output)
             output = Dense(output_dim, activation='linear', name='output_layer')(output)
             model = Model(DQN_input, output, name='DQN_unit' + name_pre)
-            model.summary()
+            # model.summary()
             return model
 
         def repeat_vector(args):

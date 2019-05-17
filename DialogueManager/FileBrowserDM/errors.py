@@ -10,3 +10,7 @@ class FileNameExistsError(Exception):
 class FileDoesNotExist(Exception):
     def __init__(self, file_name, *args) -> None:
         super().__init__(*args)
+
+class RemoveCurrentDirError(Exception):
+    def __init__(self, file_name, *args) -> None:
+        super().__init__(*args)
