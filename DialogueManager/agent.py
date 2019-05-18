@@ -6,9 +6,10 @@ import math
 from DialogueManager.state_tracker import StateTracker
 from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking, \
     Conv1D, Flatten, Reshape, MaxPooling1D, LSTMCell
-from keras.models import Model
+from keras.models import Model, load_model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
+
 
 
 class Agent(object):
@@ -547,7 +548,7 @@ class Agent(object):
         if not self.save_weights_file_path:
             return
         beh_save_file_path = re.sub(r'\.h5', r'_beh.h5', self.save_weights_file_path)
-        self.beh_model.save_weights(beh_save_file_path)
+        self.beh_model.save(beh_save_file_path)
         # tar_save_file_path = re.sub(r'\.h5', r'_tar.h5', self.save_weights_file_path)
         # self.tar_model.save_weights(tar_save_file_path)
 
@@ -557,7 +558,7 @@ class Agent(object):
         if not self.load_weights_file_path:
             return
         beh_load_file_path = re.sub(r'\.h5', r'_beh.h5', self.load_weights_file_path)
-        self.beh_model.load_weights(beh_load_file_path)
+        self.beh_model = load_model(beh_load_file_path)
             # tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
             # self.tar_model.load_weights(tar_load_file_path)
 
