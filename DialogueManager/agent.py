@@ -105,7 +105,7 @@ class Agent(object):
         encoder_state_input = Input(shape=(hidden_state,), name='encoder_state_input' + name_pre)
         # DQN_input = Input(shape=(triplet_size,))
         DQN_inputs = Input(shape=(None, action_size), name='dqn_inputs' + name_pre)
-        _, encoder_state = CuDNNGRU(hidden_state,
+        _, encoder_state = GRU(hidden_state,
                                return_state=True,
                                return_sequences=False,
                                # reset_after=True,
@@ -559,8 +559,9 @@ class Agent(object):
             return
         beh_load_file_path = re.sub(r'\.h5', r'_beh.h5', self.load_weights_file_path)
         self.beh_model = load_model(beh_load_file_path)
-            # tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
-            # self.tar_model.load_weights(tar_load_file_path)
+        # self.beh_model.load_weights(beh_load_file_path)
+        # tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
+        # self.tar_model.load_weights(tar_load_file_path)
 
 
     def init_state_tracker(self,data):

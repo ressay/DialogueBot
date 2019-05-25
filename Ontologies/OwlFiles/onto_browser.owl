@@ -189,6 +189,15 @@
              rdfs:subClassOf :Agent_action .
 
 
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#U_act_desire
+:U_act_desire rdf:type owl:Class ;
+              owl:equivalentClass [ rdf:type owl:Restriction ;
+                                    owl:onProperty :has_desire ;
+                                    owl:someValuesFrom :Desire
+                                  ] ;
+              rdfs:subClassOf :User_act .
+
+
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#U_inform
 :U_inform rdf:type owl:Class ;
           rdfs:subClassOf :User_act .
