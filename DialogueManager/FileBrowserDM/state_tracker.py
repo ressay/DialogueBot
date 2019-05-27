@@ -82,6 +82,7 @@ class StateTrackerFB(StateTracker):
     def get_possible_actions(self, encode_actions=True):
         actions = []
         is_file_map = {fbrowser.Directory: 0, fbrowser.RegFile: 1, fbrowser.File: -1}
+        file_map = {fbrowser.Directory: 'directory', fbrowser.RegFile: 'file', fbrowser.File: 'file'}
         actions.append({'intent': 'Change_directory',
                         'new_directory': '~/',
                         'file_node': self.root, 'action_node': fbrowser.Change_directory})
@@ -116,16 +117,18 @@ class StateTrackerFB(StateTracker):
                 actions.append({'intent': 'request', 'file_name': self.name_by_node[node],
                                 'slot': 'parent_directory', 'action_node': fbrowser.A_request, 'file_node': desire})
         for key in self.parent:
+            file_type = file_map[self.file_type[key]]
             if key in self.name_by_node:
                 value = self.name_by_node[key]
                 is_file = is_file_map[self.file_type[key]]
                 if key in self.file_exists:
                     if u_intent not in ignore_delete and not self.has_ancestor(self.current_path_node, key):
-                        actions.append({'intent': 'Delete_file', 'file_name': value,
+                        actions.append({'intent': 'Delete_file', 'file_name': value, 'file_type': file_type,
                                         'path': self.get_path_of_file_node(key, False),
                                         'action_node': fbrowser.Delete_file, 'file_node': key})
 
-                    if self.file_type[key] == fbrowser.Directory and u_intent not in ignore_change_dir:
+                    if self.file_type[key] == fbrowser.Directory and u_intent not in ignore_change_dir \
+                            and key != self.current_path_node:
                         actions.append({'intent': 'Change_directory',
                                         'new_directory': self.get_path_of_file_node(key),
                                         'file_node': key, 'action_node': fbrowser.Change_directory})
@@ -133,7 +136,7 @@ class StateTrackerFB(StateTracker):
                     if u_intent not in ignore_create:
                         actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
                                         'path': self.get_path_of_file_node(key, False), 'file_node': key,
-                                        'action_node': fbrowser.Create_file})
+                                        'action_node': fbrowser.Create_file, 'file_type': file_type})
                     actions.append({'intent': 'request', 'slot': 'parent_directory',
                                     'file_name': value, 'file_node': key, 'action_node': fbrowser.A_request})
             else:
@@ -224,7 +227,8 @@ class StateTrackerFB(StateTracker):
                 if file_nodes is None:
                     self.special_actions.append({'intent': 'request', 'slot': 'file_name',
                                                  'file_node': f, 'action_node': fbrowser.A_request,
-                                                 'special': 'file_not_found'})
+                                                 'special': 'file_not_found',
+                                                 'special_file_name': user_action['file_name']})
                 else:
                     for file_node in file_nodes:
                         triplets.append((fbrowser.User, f, file_node))
@@ -233,7 +237,8 @@ class StateTrackerFB(StateTracker):
                 if file_nodes is None:
                     self.special_actions.append({'intent': 'request', 'slot': 'file_name',
                                                  'file_node': f, 'action_node': fbrowser.A_request,
-                                                 'special': 'file_not_found'})
+                                                 'special': 'file_not_found',
+                                                 'special_file_name': user_action['file_name']})
                 else:
                     for file_node in file_nodes:
                         triplets.append((fbrowser.User, f, file_node))
@@ -295,9 +300,11 @@ class StateTrackerFB(StateTracker):
             user_action['parent_directory'] = user_action['origin']
         file_nodes = self.get_files_from_graph(user_action)
         if file_nodes is None:
+            name = None if 'file_name' not in user_action else user_action['file_name']
             self.special_actions.append({'intent': 'request', 'slot': 'file_name',
                                          'file_node': desire, 'action_node': fbrowser.A_request,
-                                         'special': 'file_not_found'})
+                                         'special': 'file_not_found' if 'file_name' in user_action else 'file_name',
+                                         'special_file_name': name})
             triplets.append((fbrowser.User, fbrowser.u_acted, desire))
             return triplets
         for file_node in file_nodes:
@@ -343,9 +350,11 @@ class StateTrackerFB(StateTracker):
             return triplets
         # if delete or change directory and file not found, special action to re ask for file name
         elif file_nodes is None:
+            name = None if 'file_name' not in user_action else user_action['file_name']
             self.special_actions.append({'intent': 'request', 'slot': 'file_name',
                                          'file_node': desire, 'action_node': fbrowser.A_request,
-                                         'special': 'file_not_found'})
+                                         'special': 'file_not_found' if 'file_name' in user_action else 'file_name',
+                                         'special_file_name': name})
             triplets.append((fbrowser.User, fbrowser.u_acted, desire))
             return triplets
 
@@ -438,6 +447,7 @@ class StateTrackerFB(StateTracker):
         triplets.append((newNode, fbrowser.has_name, Literal(name)))
         triplets.append((dest, fbrowser.contains_file, newNode))
         self.add_triplets(triplets)
+        self.add_to_all_triplets(triplets)
         result = self.add_file_existence(newNode)
         if result is not None:
             f, c = result
@@ -487,6 +497,7 @@ class StateTrackerFB(StateTracker):
         triplets.append((root, fbrowser.has_name, Literal(name)))
         self.current_path_node, self.current_path = root, name
         self.add_triplets(triplets)
+        self.add_to_all_triplets(triplets)
         return self.root
 
     def add_tree_to_graph(self, tree_sim, root_node, add_existence=True):
@@ -498,6 +509,7 @@ class StateTrackerFB(StateTracker):
             triplets = [(n, onto.rdf_type, types[f]), (n, fbrowser.has_name, Literal(m['name'])),
                         (root_node, fbrowser.contains_file, n)]
             self.add_triplets(triplets)
+            self.add_to_all_triplets(triplets)
             nodes.append(n)
             if not f:
                 nodes += self.add_tree_to_graph(m['tree_sim'], n, False)
@@ -599,10 +611,6 @@ class StateTrackerFB(StateTracker):
                 if file_node in dests:
                     dests.remove(file_node)
 
-
-
-
-
     def get_path_of_file(self, file_name):
         """
         gets file's ancestors
@@ -621,7 +629,7 @@ class StateTrackerFB(StateTracker):
         """
         if node == self.root:
             return self.name_by_node[self.root]
-        assert node in self.parent, "PATH FROM NODE ERROR: node has no parent directory node: " + str(node) +\
+        assert node in self.parent, "PATH FROM NODE ERROR: node has no parent directory node: " + str(node) + \
                                     ' name: ' + str(self.name_by_node[node])
         # TODO fix error that is happening here
         assert self.file_type[self.parent[node]] == fbrowser.Directory, 'TYPE OF PARENT IS NOT DIRECTORY BUT: ' + \

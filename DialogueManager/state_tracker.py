@@ -258,15 +258,12 @@ class StateTracker(object):
         """
         return []
 
-    def add_to_all_triplets(self,triplets):
+    def add_to_all_triplets(self, triplets):
         self.all_episode_triplets += self.graph.get_encoded_triplets(triplets)
 
     def update_state_user_action(self, user_action, update_encoding=True):
         self.state_map['last_user_action'] = user_action
         self.recent_user_triplets = self.get_triplets_from_action(user_action)
-        # print('user triples:')
-        # for t in self.recent_user_triplets:
-        #     print(t)
         self.add_triplets(self.recent_user_triplets)
         self.add_to_all_triplets(self.recent_user_triplets)
         if update_encoding:
@@ -275,9 +272,6 @@ class StateTracker(object):
     def update_state_agent_action(self, agent_action, update_encoding=True):
         self.state_map['last_agent_action'] = agent_action
         self.recent_agent_triplets = self.get_triplets_from_agent_action(agent_action)
-        # print('agent triples:')
-        # for t in self.recent_agent_triplets:
-        #     print(t)
         self.add_triplets(self.recent_agent_triplets)
         self.add_to_all_triplets(self.recent_agent_triplets)
         if update_encoding:
