@@ -11,8 +11,8 @@ class Graph(object):
         super().__init__()
         self.triplets = []
         self.id_triplets = []
-        self.nodes = []
-        self.edges = []
+        self.nodes = [None]
+        self.edges = [None]
         self.node_id = {}
         self.edge_id = {}
         self.init_triplets(triplets)
@@ -75,6 +75,15 @@ class Graph(object):
         """
         s,p,o = t
         return self.node_id[s],self.edge_id[p],self.node_id[o]
+
+    def get_decoded_triplet(self,t):
+        """
+        map triplet ids to their URIs
+        :param t:
+        :return: tuple of integers, URI of each id given in input
+        """
+        s,p,o = t
+        return self.nodes[s],self.edges[p],self.nodes[o]
 
     def get_encoded_list_nodes(self,nodes):
         """

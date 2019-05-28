@@ -151,11 +151,15 @@ class UserHuman(object):
         response = self.return_response()
         self.reset(response)
         while True:
+            self.dqn_agent.state_tracker.print_tree()
+            print('TRIPLETS:')
+            for t in self.dqn_agent.state_tracker.all_episode_triplets:
+                print(t, self.dqn_agent.state_tracker.graph.get_decoded_triplet(t))
             _, agent_action = self.dqn_agent.step()
             print(nlg_sys.get_sentence(agent_action))
             response = self.return_response(agent_action)
             self.dqn_agent.update_state_user_action(response)
-            self.dqn_agent.state_tracker.print_tree()
+
 
 if __name__ == '__main__':
 

@@ -3,13 +3,14 @@ import re
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import math
+
+from DialogueManager.FileBrowserDM.errors import RemoveCurrentDirError
 from DialogueManager.state_tracker import StateTracker
 from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking, \
     Conv1D, Flatten, Reshape, MaxPooling1D, LSTMCell
 from keras.models import Model, load_model
 import Ontologies.onto_fbrowser as fbrowser
 import keras.backend as K
-
 
 
 class Agent(object):
@@ -64,14 +65,14 @@ class Agent(object):
         self.current_triplets_vectors = np.array([])
         self.current_actions_vector = np.array([])
         self.current_possible_actions = []
+
         def do_nothing(state):
             return state
+
         if not self.compress_state or self.use_graph_encoder:
             self.transform = do_nothing
         else:
             self.transform = self.uncompress_state
-
-
 
     def _build_state_model(self, model, name_pre="_beh"):
         encoder_inputs = model.get_layer('encoder_inputs' + name_pre)
@@ -94,7 +95,6 @@ class Agent(object):
         output1 = gru_layer.output[1]
         output2 = output_layer.output
         return K.function([input1, input2, input3], [output1, output2])
-
 
     def _build_model(self, name_pre=''):
         triplet_size = self.state_tracker.triplet_size
@@ -137,7 +137,7 @@ class Agent(object):
         encoded_state_input = Input((self.encoder_state_size,), name='encoded_state_input' + name_pre)
         if not self.use_graph_encoder:
             state_repeated = Lambda(repeat_vector,
-                                        output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
+                                    output_shape=(None, hidden_state))([encoder_state, DQN_inputs])
             h = hidden_state
         # mask = Masking(mask_value=self.maskv)(DQN_inputs)
         else:
@@ -146,17 +146,18 @@ class Agent(object):
             h = self.encoder_state_size
         concat = Concatenate()([state_repeated, DQN_inputs])
 
-        outputs = TimeDistributed(DQN_unit([hidden_state*3, hidden_state*2, hidden_state],h), name='distributed' + name_pre)(
+        outputs = TimeDistributed(DQN_unit([hidden_state * 3, hidden_state * 2, hidden_state], h),
+                                  name='distributed' + name_pre)(
             concat)
         if self.use_graph_encoder:
-            model = Model([encoded_state_input,DQN_inputs],outputs)
+            model = Model([encoded_state_input, DQN_inputs], outputs)
         else:
             model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
         model.compile('rmsprop', loss='mse')
         # model.summary()
         return model
 
-    def reset(self, user_action,data):
+    def reset(self, user_action, data):
         """
         resets the agent with start user action
         :param user_action:
@@ -210,7 +211,11 @@ class Agent(object):
         else:
             action_index, action = self.get_action(states)
             self.graph_encoding = self.state_tracker.get_encoded_state()
-        self.state_tracker.update_state_agent_action(action, update_encoding=self.use_graph_encoder)
+        try:
+            self.state_tracker.update_state_agent_action(action, update_encoding=self.use_graph_encoder)
+        except RemoveCurrentDirError as e:
+            print('Remove Current file error')
+            return action_index, {'intent': 'inform', 'error': e}
         return action_index, action
 
     def get_action(self, states=None):
@@ -282,7 +287,7 @@ class Agent(object):
             state = [np.array([s]) for s in states]
         else:
             state = [pad_sequences(np.array([s[S] for s in states]))
-                                                     for S in range(len(states[0]))]
+                     for S in range(len(states[0]))]
         if target:
             result = self.tar_model.predict(state)
         else:
@@ -313,7 +318,7 @@ class Agent(object):
         return self.get_state_output([new_triplets, state])[0][0]
 
     def _predict_state_action(self, states, random_gen=True):
-        new_triplets, state,  possible_actions = [np.array([s]) for s in self.transform(states)]
+        new_triplets, state, possible_actions = [np.array([s]) for s in self.transform(states)]
         new_state, action = self.get_state_and_action([new_triplets, state, possible_actions])
         new_state = new_state[0]
         if random_gen and self.eps > random.random():
@@ -343,7 +348,7 @@ class Agent(object):
             pair = len(tr), len(ac)
         elif not self.use_graph_encoder:
             tr, ac = state
-            pair = len(tr)#, len(ac)
+            pair = len(tr)  # , len(ac)
         else:
             st, ac = state
             pair = len(ac)
@@ -474,9 +479,9 @@ class Agent(object):
                     input_tr.append(tr)
                 else:
                     st, ac = transform(s)
-                index = a if a%2 == 0 else a-1
+                index = a if a % 2 == 0 else a - 1
                 input_st.append(st)
-                input_ac.append(np.array([ac[int(index/2)]]))
+                input_ac.append(np.array([ac[int(index / 2)]]))
                 targets.append(np.array([np.array((t[index], t[index + 1]))]))
             # print(input_tr.shape,input_st.shape,input_ac.shape)
             input_st, input_ac, targets = [np.array(a)
@@ -563,13 +568,12 @@ class Agent(object):
         # tar_load_file_path = re.sub(r'\.h5', r'_tar.h5', self.load_weights_file_path)
         # self.tar_model.load_weights(tar_load_file_path)
 
-
-    def init_state_tracker(self,data):
-        state_tracker = StateTracker(self.encoder_size, fbrowser.graph,one_hot=self.one_hot,data=data)
+    def init_state_tracker(self, data):
+        state_tracker = StateTracker(self.encoder_size, fbrowser.graph, one_hot=self.one_hot, data=data)
         return state_tracker
 
-    def reinit_state_tracker(self,data):
-        self.state_tracker.reset(self.encoder_size,fbrowser.graph,one_hot=self.one_hot,data=data)
+    def reinit_state_tracker(self, data):
+        self.state_tracker.reset(self.encoder_size, fbrowser.graph, one_hot=self.one_hot, data=data)
 
 
 if __name__ == '__main__':

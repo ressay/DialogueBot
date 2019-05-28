@@ -334,7 +334,8 @@ class StateTrackerFB(StateTracker):
             file_type = fbrowser.File if 'is_file' not in user_action \
                 else fbrowser.Directory if not user_action['is_file'] else fbrowser.RegFile
         if desire == fbrowser.Change_directory:
-            user_action['file_name'] = user_action['directory']
+            if 'directory' in user_action:
+                user_action['file_name'] = user_action['directory']
         file_nodes = self.get_files_from_graph(user_action)
         # TODO Fix file name when delete intent
         # self.special_actions
