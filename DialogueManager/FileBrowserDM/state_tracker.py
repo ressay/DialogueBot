@@ -384,7 +384,8 @@ class StateTrackerFB(StateTracker):
         :param (dict) agent_action:
         :return (list): list of triplets from user's action
         """
-        return self.agent_actions_map[agent_action['intent']](agent_action)
+        triplets = self.agent_actions_map[agent_action['intent']](agent_action)
+        return triplets
 
     def ask_triplets_a(self, agent_action):
         triplets = []
@@ -529,6 +530,19 @@ class StateTrackerFB(StateTracker):
             return nodes
         for n in nodes:
             self.add_file_existence(n)
+
+    def get_triplets_from_tree(self):
+        triplets = []
+        for n in self.file_exists:
+            triplets += [(n, onto.rdf_type, self.file_type[n]), (n, fbrowser.has_name, Literal(self.name_by_node[n])),
+                         (self.parent[n], fbrowser.contains_file, n)]
+        return triplets
+
+    def refresh_triplets(self, agent_action):
+        if agent_action['intent'] in ['Create_file', 'Delete_file', 'Move_file', 'Copy_file']:
+            triplets = self.get_triplets_from_tree()
+            self.all_episode_triplets.clear()
+            self.add_to_all_triplets(triplets)
 
     def create_tree_sim(self, root_inf=None):
         if root_inf is None:
