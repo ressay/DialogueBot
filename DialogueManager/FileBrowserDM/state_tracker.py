@@ -534,8 +534,9 @@ class StateTrackerFB(StateTracker):
     def get_triplets_from_tree(self):
         triplets = []
         for n in self.file_exists:
-            triplets += [(n, onto.rdf_type, self.file_type[n]), (n, fbrowser.has_name, Literal(self.name_by_node[n])),
-                         (self.parent[n], fbrowser.contains_file, n)]
+            if n != self.root:
+                triplets += [(n, onto.rdf_type, self.file_type[n]), (n, fbrowser.has_name, Literal(self.name_by_node[n])),
+                             (self.parent[n], fbrowser.contains_file, n)]
         return triplets
 
     def refresh_triplets(self, agent_action):
