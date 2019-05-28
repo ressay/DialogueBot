@@ -577,4 +577,4 @@ class Agent(object):
 
 
 if __name__ == '__main__':
-    array = [[1, 2], [2, 3], [4, 5]]
+    g1 = list(fbrowser.graph.triples((None, None, None)))
