@@ -2,6 +2,9 @@ import json
 
 from rdflib import Graph
 
+from DialogueManager.FileBrowserDM.agent import AgentFB
+from DialogueManager.FileBrowserDM.file_tree_sim import FileTreeSimulator
+from DialogueManager.FileBrowserDM.nlg import Nlg_system
 from DialogueManager.FileBrowserDM.state_tracker import StateTrackerFB
 from DialogueManager.FileBrowserDM.user_simulator import UserSimulatorFB
 import Ontologies.onto_fbrowser as fbrowser
@@ -69,7 +72,7 @@ class UserAgent:
         assert self.user_sim, 'User simulator not defined'
         mask = UserSimulatorFB.CURRENT_TREE | UserSimulatorFB.SIMILARITY | UserSimulatorFB.GOAL_DIR \
         | UserSimulatorFB.SUB_GOALS | UserSimulatorFB.GOAL_TREE
-        user_sim.debug_add(mask)
+        self.user_sim.debug_add(mask)
         response = self.user_sim.reset(self.state_tracker.get_data())
         print(response)
         while True:
@@ -89,11 +92,76 @@ class UserAgent:
 
                 print(response)
 
+class UserHuman(object):
+    """Connects a real user to the conversation through the console."""
+
+    def __init__(self, directory='/home/ressay/workspace/PFEM2/DialogueBot/Simulation'):
+        """
+        The constructor for User.
+        :param (DialogueManager.user_simulator.UserSimulator) user_sim:
+        """
+
+        CONSTANTS_FILE_PATH = 'FileBrowserDM/constants.json'
+        constants_file = CONSTANTS_FILE_PATH
+
+        with open(constants_file) as f:
+            constants = json.load(f)
+            constants['agent']['load_weights_file_path'] = '../my_weights/m3.h5'
+        compress = True
+        train_batch = True
+        use_encoder = False
+        one_hot = True
+        self.dqn_agent = AgentFB(800, constants,train_batch, use_encoder, compress, one_hot)
+        self.directory = directory
+
+    def return_response(self,agent_action=None):
+        """
+        Asks user in console for response then receives a response as input.
+
+        Format must be like this:
+
+        Delete_file_desire, file_name:dir1; parent_directory:dir1; is_file:1
+        Create_file_desire, file_name:file1; parent_directory:dir1; is_file:1
+        request, slot:parent_directory
+        Change_directory_desire, directory:dir1
+
+        intents, informs keys and values, and request keys and values cannot contain / , :
+
+        Returns:
+            dict: The response of the user
+        """
+        input_string = input('Response: ')
+        input_string = input_string.replace(' ','')
+        intent,input_string = input_string.split(',')
+        arguments = input_string.split(';')
+        response = {'intent': intent}
+        for arg in arguments:
+            key,val = arg.split(':')
+            response[key] = val
+        return response
+
+    def reset(self,first_action):
+        tree = FileTreeSimulator.read_existing_dirs(directory=self.directory)
+        data = {'current_tree_sim': tree, 'tree_sim': tree}
+        self.dqn_agent.reset(first_action,data)
+        self.dqn_agent.eps = 0
+
+    def start_conversation(self):
+        nlg_sys = Nlg_system()
+        response = self.return_response()
+        self.reset(response)
+        while True:
+            _, agent_action = self.dqn_agent.step()
+            print(nlg_sys.get_sentence(agent_action))
+            response = self.return_response(agent_action)
+            self.dqn_agent.update_state_user_action(response)
+            self.dqn_agent.state_tracker.print_tree()
+
 if __name__ == '__main__':
 
-    c = json.load(open('FileBrowserDM/constants.json', 'r'))
-    user_sim = UserSimulatorFB(c,Graph())
-    user = UserAgent(user_sim)
+    # c = json.load(open('FileBrowserDM/constants.json', 'r'))
+    # user_sim = UserSimulatorFB(c,Graph())
+    user = UserHuman()
     user.start_conversation()
 
 

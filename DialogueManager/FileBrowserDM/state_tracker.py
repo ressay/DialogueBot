@@ -12,7 +12,7 @@ from DialogueManager.FileBrowserDM.utils import agent_actions
 
 
 class StateTrackerFB(StateTracker):
-    def __init__(self, size, ontology, one_hot=True, lazy_encoding=True, data=None) -> None:
+    def __init__(self, size, ontology, one_hot=True, lazy_encoding=True, data=None, root_path='~') -> None:
         """
         StateTracker constructor
         :param (int) size:
@@ -42,6 +42,9 @@ class StateTrackerFB(StateTracker):
         self.special_actions = []
         self.special_nodes = {}
         self.root = None
+        if root_path[-1] == '/':
+            root_path = root_path[:-1]
+        self.root_path = root_path
         self.current_path_node, self.current_path = None, None
         self.last_user_action = None
         if data is not None:
@@ -84,7 +87,7 @@ class StateTrackerFB(StateTracker):
         is_file_map = {fbrowser.Directory: 0, fbrowser.RegFile: 1, fbrowser.File: -1}
         file_map = {fbrowser.Directory: 'directory', fbrowser.RegFile: 'file', fbrowser.File: 'file'}
         actions.append({'intent': 'Change_directory',
-                        'new_directory': '~/',
+                        'new_directory': self.root_path,
                         'file_node': self.root, 'action_node': fbrowser.Change_directory})
 
         def ask_action(act):
@@ -110,8 +113,8 @@ class StateTrackerFB(StateTracker):
                     for dest in dests:
                         if node != self.root and dest != self.parent[node] and node in self.file_exists:
                             actions.append({'intent': intent, 'file_name': self.name_by_node[node],
-                                            'origin': self.get_path_of_file_node(node, False),
-                                            'dest': self.get_path_of_file_node(dest), 'action_node': dest,
+                                            'origin': self.get_path_with_real_root(node, False),
+                                            'dest': self.get_path_with_real_root(dest), 'action_node': dest,
                                             'file_node': node, 'dest_node': dest})
             if len(self.special_nodes) > 1:
                 actions.append({'intent': 'request', 'file_name': self.name_by_node[node],
@@ -124,18 +127,18 @@ class StateTrackerFB(StateTracker):
                 if key in self.file_exists:
                     if u_intent not in ignore_delete and not self.has_ancestor(self.current_path_node, key):
                         actions.append({'intent': 'Delete_file', 'file_name': value, 'file_type': file_type,
-                                        'path': self.get_path_of_file_node(key, False),
+                                        'path': self.get_path_with_real_root(key, False),
                                         'action_node': fbrowser.Delete_file, 'file_node': key})
 
                     if self.file_type[key] == fbrowser.Directory and u_intent not in ignore_change_dir \
                             and key != self.current_path_node:
                         actions.append({'intent': 'Change_directory',
-                                        'new_directory': self.get_path_of_file_node(key),
+                                        'new_directory': self.get_path_with_real_root(key),
                                         'file_node': key, 'action_node': fbrowser.Change_directory})
                 else:
                     if u_intent not in ignore_create:
                         actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
-                                        'path': self.get_path_of_file_node(key, False), 'file_node': key,
+                                        'path': self.get_path_with_real_root(key, False), 'file_node': key,
                                         'action_node': fbrowser.Create_file, 'file_type': file_type})
                     actions.append({'intent': 'request', 'slot': 'parent_directory',
                                     'file_name': value, 'file_node': key, 'action_node': fbrowser.A_request})
@@ -218,6 +221,10 @@ class StateTrackerFB(StateTracker):
         triplets = []
         assert 'inform' == user_action['intent'], "intent is not inform inside inform_triplets method"
         prev = self.state_map['last_agent_action']
+        if 'slot' in prev and prev['slot'] == 'parent_directory':
+            if 'file_name' in user_action:
+                user_action['parent_directory'] = user_action['file_name']
+                del user_action['file_name']
         if 'file_name' in user_action:
             # TODO fix case when inform comes after special action
             f = self.get_focused_file_node(True)
@@ -621,9 +628,16 @@ class StateTrackerFB(StateTracker):
         node = self.choose_suitable_node(self.nodes_by_name[file_name])
         return self.get_path_of_file_node(node)
 
+    def get_path_with_real_root(self, node, add_self=True):
+        path = self.get_path_of_file_node(node, add_self)
+        dirs = path.split('/')
+        dirs[0] = self.root_path
+        return '/'.join(dirs)
+
     def get_path_of_file_node(self, node, add_self=True):
         """
         gets file's ancestors
+        :param add_self:
         :param node:
         :return:
         """

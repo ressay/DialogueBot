@@ -391,9 +391,9 @@ class UserSimulatorFB(UserSimulator):
         generate an action related to tree creation
         :return (dict): the generated action
         """
-        proba_file = 0.8
-        proba_parent = 0.2
-        proba_change_dir = 0.7
+        proba_file = 0.4
+        proba_parent = 0.4
+        proba_change_dir = 0.4
 
         def next_dir(origin, destination):
             """

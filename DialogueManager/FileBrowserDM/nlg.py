@@ -163,5 +163,5 @@ if __name__ == '__main__':
     print(nlg.get_sentence({'intent': 'Change_directory',
                             'new_directory': 'esta/lavida/baby'}))
     print(nlg.get_sentence({'intent': 'ask', 'action': {'intent': 'Create_file', 'file_name': 'khobz',
-                            'path': 'esta/lavida/baby', 'file_type': 'file'}}))
+                            'path': 'eso/es', 'file_type': 'file'}}))
 

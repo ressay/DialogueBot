@@ -11,7 +11,7 @@ DIR = 0
 class FileTreeSimulator(object):
     home = os.environ['HOME']
 
-    def __init__(self, tree=None, name='~', parent=None) -> None:
+    def __init__(self, tree=None, name='~', parent=None, path=None) -> None:
         """
         creates a simulator of a file tree (add/delete/move/copy actions)
         :param (str) name: name of parent dir
@@ -33,6 +33,7 @@ class FileTreeSimulator(object):
         #     self.graph.add((self.parent_node, onto.rdf_type, fbrowser.Directory))
         #     self.graph.add((self.parent_node, fbrowser.has_name, Literal(name)))
         self.name = name
+        self.path_name = path
         if tree is None:
             tree = self.generate_random_tree()
         self.addAll_tree(tree)
@@ -432,6 +433,8 @@ class FileTreeSimulator(object):
 
     def path(self, is_file=False):
         if self.parent is None:
+            if self.path_name is not None:
+                return self.path_name + '/'
             return self.name + '/'
         if not is_file:
             return self.parent.path() + self.name + '/'
@@ -476,9 +479,11 @@ class FileTreeSimulator(object):
     def read_existing_dirs(max_depth=3, directory=None, depth=0, parent=None, max_per_dir=4):
         if directory is None:
             directory = FileTreeSimulator.home
+        dirs = directory.split('/')
+        dirname = dirs[-1] if dirs[-1] != '' else dirs[-2]
         if max_depth == depth:
-            return FileTreeSimulator([], name=directory, parent=parent)
-        root = FileTreeSimulator([], name=directory, parent=parent)
+            return FileTreeSimulator([], name=dirname, parent=parent,path=directory)
+        root = FileTreeSimulator([], name=dirname, parent=parent,path=directory)
         dirs = os.listdir(root.path())
         i = 0
         for d in dirs:
