@@ -17,7 +17,6 @@ class ErrorModelController:
             constants (dict): Loaded constants in dict
         """
 
-        self.movie_dict = db_dict
         self.slot_error_prob = constants['emc']['slot_error_prob']
         self.slot_error_mode = constants['emc']['slot_error_mode']  # [0, 3]
         self.intent_error_prob = constants['emc']['intent_error_prob']
