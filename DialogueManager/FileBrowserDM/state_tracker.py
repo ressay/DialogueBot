@@ -147,6 +147,8 @@ class StateTrackerFB(StateTracker):
                                 'file_node': key, 'action_node': fbrowser.A_request})
         actions += self.special_actions
         self.special_actions = []
+        for a in actions:
+            a['ask_nodes'] = (a['action_node'], a['file_node'])
         action_nodes = [(m['action_node'], m['file_node']) for m in actions]
         actions = sum([[act, ask_action(act)] for act in actions], [])
         if encode_actions:
@@ -388,8 +390,10 @@ class StateTrackerFB(StateTracker):
         triplets = []
         assert 'ask' == agent_action['intent'], "intent not ask in ask triplets agent method"
         agent_action['action_node'] = fbrowser.A_ask
+        a_node, f_node = agent_action['ask_nodes']
         # triplets.append((ask_node, onto.rdf_type, fbrowser.A_ask))
         # TODO FIX ACTION_NODE
+        triplets.append((a_node, fbrowser.A_ask, f_node))
         triplets.append((fbrowser.A_ask, fbrowser.has_parameter, agent_action['action']['action_node']))
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, ask_node))
         return triplets
