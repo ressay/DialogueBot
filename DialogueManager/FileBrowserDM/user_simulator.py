@@ -30,7 +30,7 @@ class UserSimulatorFB(UserSimulator):
     confirm = 'confirm'
     deny = 'deny'
 
-    def __init__(self, constants, ontology):
+    def __init__(self, constants, ontology,rewards=None):
         """
         The constructor for UserSimulator. Sets dialogue config variables.
 
@@ -48,6 +48,9 @@ class UserSimulatorFB(UserSimulator):
         self.user_responses['request'] = self._req_response
         self.debug = 0
         self.subgoal_reward = None
+        self.rewards = {}
+        if rewards is not None:
+            self.rewards = rewards
 
     def generate_goal(self):
         goal_tree = self.state['current_file_tree'].copy()
@@ -143,6 +146,8 @@ class UserSimulatorFB(UserSimulator):
 
     def reward_function(self, agent_action, success):
         if success:
+            if 'success' in self.rewards:
+                return self.rewards['success']
             return 2
         if self.sub_goal_exists():  # if there are pending sub_goals
             reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
@@ -155,14 +160,24 @@ class UserSimulatorFB(UserSimulator):
         f, t = self.state['current_similarity']
         pf, pt = self.state['previous_similarity']
         if f / t > pf / pt:  # tree similarity got better
+            if 'improved' in self.rewards:
+                return self.rewards['improved']
             return 2
         elif f / t < pf / pt:
             if f < pf:
-                return -10
-            return -5
+                if 'nimprovedf' in self.rewards:
+                    return self.rewards['nimprovedf']
+                return -3
+            if 'nimproved' in self.rewards:
+                return self.rewards['nimproved']
+            return -3
         # if confirming an action for agent, reward is neutral
         if self.state['current_uAction']['intent'] == self.confirm:
-            return 0.5
+            if 'confirm' in self.rewards:
+                return self.rewards['confirm']
+            return 0
+        if 'other' in self.rewards:
+            return self.rewards['other']
         return -1
 
     def apply_agent_tree_action(self, agent_action, f_sim):
