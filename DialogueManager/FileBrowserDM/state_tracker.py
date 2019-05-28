@@ -91,7 +91,7 @@ class StateTrackerFB(StateTracker):
                         'file_node': self.root, 'action_node': fbrowser.Change_directory})
 
         def ask_action(act):
-            return {'intent': 'ask', 'action': act}
+            return {'intent': 'ask', 'action': act, 'ask_nodes': act['ask_nodes']}
 
         ignore_change_dir = [usim.Delete_file_desire, usim.Create_file_desire, usim.Copy_file_desire,
                              usim.Move_file_desire]
