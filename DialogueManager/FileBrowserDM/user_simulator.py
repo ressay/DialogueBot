@@ -51,6 +51,7 @@ class UserSimulatorFB(UserSimulator):
         self.rewards = {}
         if rewards is not None:
             self.rewards = rewards
+        self.probas = {}
         if probas is not None:
             self.probas = probas
 
