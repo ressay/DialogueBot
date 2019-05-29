@@ -30,7 +30,7 @@ class UserSimulatorFB(UserSimulator):
     confirm = 'confirm'
     deny = 'deny'
 
-    def __init__(self, constants, ontology,rewards=None):
+    def __init__(self, constants, ontology,rewards=None,probas=None):
         """
         The constructor for UserSimulator. Sets dialogue config variables.
 
@@ -51,6 +51,9 @@ class UserSimulatorFB(UserSimulator):
         self.rewards = {}
         if rewards is not None:
             self.rewards = rewards
+        if probas is not None:
+            self.probas = probas
+
 
     def generate_goal(self):
         goal_tree = self.state['current_file_tree'].copy()
@@ -408,9 +411,9 @@ class UserSimulatorFB(UserSimulator):
         generate an action related to tree creation
         :return (dict): the generated action
         """
-        proba_file = 0.8
-        proba_parent = 0.6
-        proba_change_dir = 0.6
+        proba_file = 0.8 if 'proba_file' not in self.probas else self.probas['proba_file']
+        proba_parent = 0.6 if 'proba_parent' not in self.probas else self.probas['proba_parent']
+        proba_change_dir = 0.4 if 'proba_change_dir' not in self.probas else self.probas['proba_change_dir']
 
         def next_dir(origin, destination):
             """

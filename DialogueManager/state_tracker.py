@@ -276,7 +276,8 @@ class StateTracker(object):
         self.add_to_all_triplets(self.recent_agent_triplets)
         if update_encoding:
             self.encode_triplets(self.recent_agent_triplets)
-        # self.refresh_triplets(agent_action)
+        self.refresh_triplets(agent_action)
+
 
     def get_new_triplets(self):
         new_triplets = self.recent_agent_triplets + self.recent_user_triplets
