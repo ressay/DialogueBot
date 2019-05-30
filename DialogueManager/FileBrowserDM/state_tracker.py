@@ -270,15 +270,15 @@ class StateTrackerFB(StateTracker):
 
             if f is None:
                 triplets.append((fbrowser.User, fbrowser.U_inform, Literal(user_action['parent_directory'])))
-            elif t is None:
-                # t = self.ontology.triples((None,fbrowser.has_name,Literal(user_action['parent_directory'])))
-                # if t is None:
-                if f in self.parent:
-                    directory = BNode()
-                    triplets.append((directory, fbrowser.has_name, Literal(user_action['parent_directory'])))
-                    triplets.append((directory, onto.rdf_type, fbrowser.Directory))
-                    triplets.append((directory, fbrowser.contains_file, f))
-            else:
+            # elif t is None:
+            #     # t = self.ontology.triples((None,fbrowser.has_name,Literal(user_action['parent_directory'])))
+            #     # if t is None:
+            #     if f in self.parent:
+            #         directory = BNode()
+            #         triplets.append((directory, fbrowser.has_name, Literal(user_action['parent_directory'])))
+            #         triplets.append((directory, onto.rdf_type, fbrowser.Directory))
+            #         triplets.append((directory, fbrowser.contains_file, f))
+            elif t is not None:
                 if f in (fbrowser.Copy_file, fbrowser.Move_file):
                     new_special = dict((node, self.special_nodes[node]) for node in self.special_nodes
                                        if self.parent[node] in t)
@@ -347,12 +347,13 @@ class StateTrackerFB(StateTracker):
                 triplets.append((file_node, fbrowser.has_name, Literal(user_action['file_name'])))
             if 'parent_directory' in user_action:
                 parent_dirs = self.get_files_from_graph({'file_name': user_action['parent_directory']})
-                if parent_dirs is None:
-                    parent_dir = BNode()
-                    triplets.append((parent_dir, onto.rdf_type, fbrowser.Directory))
-                    triplets.append((parent_dir, fbrowser.has_name, Literal(user_action['parent_directory'])))
-                    triplets.append((parent_dir, fbrowser.contains_file, file_node))
-                else:
+                # if parent_dirs is None:
+                #     parent_dir = BNode()
+                #     triplets.append((parent_dir, onto.rdf_type, fbrowser.Directory))
+                #     triplets.append((parent_dir, fbrowser.has_name, Literal(user_action['parent_directory'])))
+                #     triplets.append((parent_dir, fbrowser.contains_file, file_node))
+                # else:
+                if parent_dirs is not None:
                     for parent_dir in parent_dirs:
                         if self.file_type[parent_dir] == fbrowser.Directory:
                             triplets.append((parent_dir, fbrowser.contains_file, file_node))
