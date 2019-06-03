@@ -4,11 +4,11 @@ from rdflib import Literal, BNode
 
 from DialogueManager.FileBrowserDM.errors import FileNameExistsError, RemoveCurrentDirError
 from DialogueManager.FileBrowserDM.file_tree_sim import FileTreeSimulator
+from DialogueManager.FileBrowserDM.intent_tracker import ActionTracker
 from DialogueManager.state_tracker import StateTracker
 import Ontologies.onto_fbrowser as fbrowser
 import Ontologies.python_from_ontology as onto
 from DialogueManager.FileBrowserDM.user_simulator import UserSimulatorFB as usim
-from DialogueManager.FileBrowserDM.utils import agent_actions
 
 
 class StateTrackerFB(StateTracker):
@@ -22,16 +22,25 @@ class StateTrackerFB(StateTracker):
         # self.focused_file = None
         self.user_actions_map = {
             usim.Create_file_desire: self.agent_actions_desire_triplets_u,
-            usim.Change_directory_desire: self.agent_actions_desire_triplets_u,
+            usim.Change_directory_desire: self.change_dir_triplets_u,
             usim.Delete_file_desire: self.agent_actions_desire_triplets_u,
             usim.Move_file_desire: self.copy_move_desire_triplets_u,
             usim.Copy_file_desire: self.copy_move_desire_triplets_u,
+            usim.Open_file_desire: self.open_triplets_u,
+            usim.Rename_file_desire: self.rename_triplets_u,
             usim.u_request: self.request_triplets_u,
             usim.u_inform: self.inform_triplets_u,
             usim.confirm: self.ask_triplets_u,
             usim.deny: self.ask_triplets_u,
             usim.default: self.default,
             usim.end: self.default
+        }
+        self.inform_slots = {
+            'file_name': fbrowser.File_name,
+            'parent_directory': fbrowser.Parent_directory,
+            'old_name': fbrowser.Old_name,
+            'new_name': fbrowser.New_name,
+            'directory': fbrowser.File_name
         }
         self.children = {}
         self.parent = {}
@@ -57,10 +66,13 @@ class StateTrackerFB(StateTracker):
             "Change_directory": self.change_directory_triplets_a,
             "Move_file": self.move_copy_file_triplets_a,
             "Copy_file": self.move_copy_file_triplets_a,
-            "inform": self.default,
+            "Rename_file": self.rename_triplets_a,
+            "Open_file": self.open_triplets_a,
+            "inform": self.inform_triplets_a,
             "ask": self.ask_triplets_a,
             "request": self.request_triplets_a
         }
+        self.action_tracker = ActionTracker(self)
 
     def get_data(self):
         return {'current_tree_sim': self.create_tree_sim()}
@@ -147,6 +159,8 @@ class StateTrackerFB(StateTracker):
                                 'file_node': key, 'action_node': fbrowser.A_request})
         actions += self.special_actions
         self.special_actions = []
+        if self.action_tracker.has_intent():
+            actions = self.action_tracker.get_possible_actions()
         for a in actions:
             a['ask_nodes'] = (a['action_node'], a['file_node'])
         action_nodes = [(m['action_node'], m['file_node']) for m in actions]
@@ -213,16 +227,63 @@ class StateTrackerFB(StateTracker):
 
     # TODO OPTIONAL ADD_USER_ACTION NODES
     def request_triplets_u(self, user_action):
-        response = {'intent': 'inform', 'action_node': fbrowser.A_inform}
+        triplets = []
         if user_action['slot'] == 'directory':
-            file_nodes = self.get_files_from_graph(user_action)
-            # TODO FINISH THIS
+            self.action_tracker.set_current_action(user_action)
+            triplets.append((fbrowser.User, fbrowser.U_request, fbrowser.Directory))
+            for key in self.inform_slots:
+                if key in user_action:
+                    triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                    triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+            return triplets
+
+    def rename_triplets_u(self, user_action):
+        triplets = []
+        self.action_tracker.set_current_action(user_action)
+        triplets.append((fbrowser.User, fbrowser.Rename_file, fbrowser.Rename_file))
+        for key in self.inform_slots:
+            if key in user_action:
+                triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+        return triplets
+
+    def open_triplets_u(self, user_action):
+        triplets = []
+        self.action_tracker.set_current_action(user_action)
+        triplets.append((fbrowser.User, fbrowser.Open_file, fbrowser.Open_file))
+        for key in self.inform_slots:
+            if key in user_action:
+                triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+        return triplets
+
+    def change_dir_triplets_u(self, user_action):
+        triplets = []
+        self.action_tracker.set_current_action(user_action)
+        triplets.append((fbrowser.User, fbrowser.Change_directory, fbrowser.Directory))
+        for key in self.inform_slots:
+            if key in user_action:
+                triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+        return triplets
 
     def inform_triplets_u(self, user_action):
+
         # print('inform triplets:',user_action)
         triplets = []
         assert 'inform' == user_action['intent'], "intent is not inform inside inform_triplets method"
         prev = self.state_map['last_agent_action']
+        if self.action_tracker.has_intent():
+            self.action_tracker.add_inform_intent(user_action, prev)
+
+            for key in self.inform_slots:
+                if key in user_action:
+                    triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                    triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+            #TODO remove this
+            assert len(triplets) > 0, "no keys found in inform" + str(user_action)
+            return triplets
+
         if 'slot' in prev and prev['slot'] == 'parent_directory':
             if 'file_name' in user_action:
                 user_action['parent_directory'] = user_action['file_name']
@@ -303,6 +364,7 @@ class StateTrackerFB(StateTracker):
         return triplets
 
     def copy_move_desire_triplets_u(self, user_action):
+        self.action_tracker.clear_current_action()
         triplets = []
         desire = fbrowser.Move_file if user_action['intent'] == usim.Move_file_desire else fbrowser.Copy_file
         if 'origin' in user_action:
@@ -323,6 +385,7 @@ class StateTrackerFB(StateTracker):
         return triplets
 
     def agent_actions_desire_triplets_u(self, user_action):
+        self.action_tracker.clear_current_action()
         triplets = []
         desires = {
             usim.Change_directory_desire: (fbrowser.Change_directory, fbrowser.Directory),
@@ -399,6 +462,22 @@ class StateTrackerFB(StateTracker):
         triplets.append((a_node, fbrowser.A_ask, f_node))
         triplets.append((fbrowser.A_ask, fbrowser.has_parameter, agent_action['action']['action_node']))
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, ask_node))
+        return triplets
+
+    def inform_triplets_a(self, agent_action):
+        triplets = []
+        triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.A_inform))
+        return triplets
+
+    def open_triplets_a(self, agent_action):
+        triplets = []
+        triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.Open_file))
+        return triplets
+
+    def rename_triplets_a(self, agent_action):
+        triplets = []
+        triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.Rename_file))
+        triplets.append((agent_action['file_node'],fbrowser.has_name,Literal(agent_action['new_name'])))
         return triplets
 
     def request_triplets_a(self, agent_action):

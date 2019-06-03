@@ -24,11 +24,14 @@ class UserSimulatorFB(UserSimulator):
     Create_file_desire = 'Create_file_desire'
     Copy_file_desire = 'Copy_file_desire'
     Move_file_desire = 'Move_file_desire'
+    Open_file_desire = 'Open_file_desire'
+    Rename_file_desire = 'Rename_file_desire'
     # Create_directory_desire = 'Create_directory_desire'
     u_inform = 'inform'
     u_request = 'request'
     confirm = 'confirm'
     deny = 'deny'
+
 
     def __init__(self, constants, ontology,rewards=None,probas=None):
         """
@@ -39,10 +42,11 @@ class UserSimulatorFB(UserSimulator):
             ontology (rdflib.Graph): ontology graph
         """
         super().__init__(constants, ontology)
-        self.agent_tree_actions = ["Create_file", "Delete_file","Copy_file","Move_file"]
+        self.agent_tree_actions = ["Create_file", "Delete_file","Copy_file","Move_file","Rename_file"]
         for a in self.agent_tree_actions:
             self.user_responses[a] = self._build_response
         self.user_responses['Change_directory'] = self._build_response
+        self.user_responses['Open_file'] = self._build_response
         self.user_responses['inform'] = self._build_response
         self.user_responses['ask'] = self._ask_response
         self.user_responses['request'] = self._req_response
@@ -89,6 +93,10 @@ class UserSimulatorFB(UserSimulator):
             if t:
                 break
             self.print_debug()
+        goal_sim = self.goal['goal_tree']
+        found, total = fileTreeSimulator.tree_similarity(goal_sim)
+        self.state['current_similarity'] = [found, total]
+        self.state['previous_similarity'] = [found, total]
         # self.print_debug()
         # self.max_round = self.goal['goal_tree'].r_size() * 4
         return self._return_init_action()
@@ -200,7 +208,9 @@ class UserSimulatorFB(UserSimulator):
         elif intent == 'Move_file':
             f_sim.move_file(agent_action['file_name'], agent_action['origin'], agent_action['dest'])
         elif intent == 'Copy_file':
-            f_sim.copy_file(agent_action['file_name'],agent_action['origin'],agent_action['dest'])
+            f_sim.copy_file(agent_action['file_name'], agent_action['origin'], agent_action['dest'])
+        elif intent == 'Rename_file':
+            f_sim.rename_file(agent_action['old_name'], agent_action['new_name'], agent_action['path'])
 
     def update_sub_goals(self, agent_action):
         for sub_goal in self.goal['sub_goal']:
@@ -215,12 +225,33 @@ class UserSimulatorFB(UserSimulator):
             if sub_goal['name'] == 'Search_file':
                 if agent_action['intent'] == 'inform' and 'paths' in agent_action:
                     self.subgoal_reward = 0
-                    # p1 = agent_action['path']
-                    # f, m = self.state['current_file_tree'].lookup_file_name(sub_goal['file'])
-                    # if FileTreeSimulator.equal_paths(m['tree_sim'].path(True), p1):
-                    #     self.subgoal_reward = 2
-                    # else:
-                    #     self.subgoal_reward = -2
+                    paths = agent_action['paths']
+                    f, m = self.state['current_file_tree'].lookup_file_name(sub_goal['file'])
+                    self.subgoal_reward = -2
+                    for path in paths:
+                        if FileTreeSimulator.equal_paths(m['tree_sim'].path(True), path):
+                            self.subgoal_reward = 2
+                            break
+
+                    self.goal['sub_goal'].remove(sub_goal)
+            if sub_goal['name'] == 'Rename_file':
+                if agent_action['intent'] == 'Rename_file':
+                    p_dir = FileTreeSimulator.last_dir_in_path(agent_action['path'])
+                    agent_action['parent_directory'] = p_dir
+                    keys = ['old_name', 'new_name', 'parent_directory']
+                    self.subgoal_reward = 2
+                    for key in keys:
+                        if agent_action[key] != sub_goal[key]:
+                            self.subgoal_reward = -3
+
+                    self.goal['sub_goal'].remove(sub_goal)
+            if sub_goal['name'] == 'Open_file':
+                if agent_action['intent'] == sub_goal['name']:
+                    p_dir = FileTreeSimulator.last_dir_in_path(agent_action['path'])
+                    if p_dir != sub_goal['parent_directory'] or agent_action['file_name'] != sub_goal['file']:
+                        self.subgoal_reward = -3
+                    else:
+                        self.subgoal_reward = 2
                     self.goal['sub_goal'].remove(sub_goal)
             if sub_goal['name'] == 'Move_file' or sub_goal['name'] == 'Copy_file':
                 if agent_action['intent'] == sub_goal['name']:
@@ -265,30 +296,72 @@ class UserSimulatorFB(UserSimulator):
         self.goal['sub_goal'].append({'name': 'Search_file',
                                       'file': file})
 
-    def get_slot_from_sub_goal(self,slot):
+    def add_open_sub_goal(self, file, p_dir):
+        self.goal['sub_goal'].append({'name': 'Open_file',
+                                      'file': file,
+                                      'parent_directory': p_dir})
+
+    def add_rename_sub_goal(self, old_file, new_file, p_dir):
+        self.goal['sub_goal'].append({'name': 'Rename_file',
+                                      'old_name': old_file,
+                                      'new_name': new_file,
+                                      'parent_directory': p_dir})
+
+    def get_slot_from_sub_goal(self, slot):
         if not self.sub_goal_exists():
             return None
         sub_goal = self.next_sub_goal()
-        if sub_goal['name'] in ('Copy_file','Move_file','Search_file'):
+        if sub_goal['name'] in ('Copy_file', 'Move_file', 'Search_file', 'Open_file'):
             if slot == 'file_name':
                 return sub_goal['file']
+            if slot == 'parent_directory':
+                if 'parent_directory' in sub_goal:
+                    return sub_goal['parent_directory']
+                if 'origin' in sub_goal:
+                    return FileTreeSimulator.last_dir_in_path(sub_goal['orihin'])
             if slot == 'dest' and 'dest' in sub_goal:
                 return FileTreeSimulator.last_dir_in_path(sub_goal['dest'])
+        elif sub_goal['name'] == 'Rename_file':
+            if slot == 'old_name':
+                return sub_goal['old_name']
+            if slot == 'new_name':
+                return sub_goal['new_name']
+            if slot == 'parent_directory':
+                return sub_goal['parent_directory']
         elif sub_goal['name'] == 'Change_directory':
-            if slot == 'file_name':
-                return sub_goal['dirs'][0]
+            if slot == 'directory':
+                return FileTreeSimulator.last_dir_in_path(sub_goal['dirs'][0])
         return None
 
     def generate_sub_goal_intent(self):
         sub_goal = self.next_sub_goal()
+        pF = 0.5
         if sub_goal['name'] == 'Change_directory':
             assert self.state['current_directory'] != sub_goal['dirs'][-1], 'sub goal already reached'
             dirs = sub_goal['dirs']
             index = int(random.uniform(0, len(dirs) - 0.01))
             directory = dirs[index].split('/')[-1]
-            return {'intent': self.Change_directory_desire, 'directory': directory}
+            return self.create_change_dir_desire(directory)
         elif sub_goal['name'] == 'Search_file':
-            return {'intent': self.u_request, 'slot': 'directory', 'file_name': sub_goal['file']}
+            if random.random() < pF:
+                return {'intent': self.u_request, 'slot': 'directory', 'file_name': sub_goal['file']}
+            return {'intent': self.u_request, 'slot': 'directory'}
+        elif sub_goal['name'] == 'Open_file':
+            action = {'intent': self.Open_file_desire}
+            if random.random() < pF:
+                action['file_name'] = sub_goal['file']
+            if random.random() < pF:
+                action['parent_directory'] = sub_goal['parent_directory']
+            return action
+        elif sub_goal['name'] == 'Rename_file':
+            action = {'intent': self.Rename_file_desire}
+            if random.random() < pF:
+                action['old_name'] = sub_goal['old_name']
+            if random.random() < pF:
+                action['new_name'] = sub_goal['new_name']
+            if random.random() < pF:
+                action['parent_directory'] = sub_goal['parent_directory']
+            return action
         elif sub_goal['name'] == 'Move_file' or sub_goal['name'] == 'Copy_file':
             pO, pD, pF = 0.2, 0.4, 0.8
             action = {'intent': (self.Move_file_desire if sub_goal['name'] == 'Move_file' else self.Copy_file_desire)}
@@ -322,6 +395,8 @@ class UserSimulatorFB(UserSimulator):
         # probabilities of copy/move, search file
         pCM = 0.1
         pS = 0.05
+        pRF = 0.05
+        pOF = 0.05
         intent = agent_action['intent']
         f_sim = self.state['current_file_tree']
         goal_sim = self.goal['goal_tree']
@@ -335,12 +410,21 @@ class UserSimulatorFB(UserSimulator):
         self.update_sub_goals(agent_action)
         if intent in self.agent_tree_actions:
             # add subgoal
-            if random.uniform(0, 1) <= pCM + pS:
-                if random.uniform(0, pCM + pS) <= pS:
-                    pass
-                    # f, m = self.state['current_file_tree'].get_random_file()
-                    #TODO ONCE FIXED IN AGENT, UNCOMMENT THIS
-                    # self.add_search_sub_goal(m['name'])
+            if random.uniform(0, 1) <= pCM + pS + pOF + pRF:
+                if random.uniform(0, pCM + pS + pOF + pRF) <= pRF:
+                    f, m = self.state['current_file_tree'].get_random_file()
+                    chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+                    random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
+                    self.add_rename_sub_goal(m['name'],random_name,m['tree_sim'].parent.name)
+                    self.max_round += 6
+                elif random.uniform(0, pCM + pS + pOF) <= pOF:
+                    f, m = self.state['current_file_tree'].get_random_file()
+                    self.add_open_sub_goal(m['name'], m['tree_sim'].parent.name)
+                    self.max_round += 2
+                elif random.uniform(0, pCM + pS) <= pS:
+                    f, m = self.state['current_file_tree'].get_random_file()
+                    self.add_search_sub_goal(m['name'])
+                    self.max_round += 2
                 else:
                     if random.uniform(0, 1) < 0.5:
                         modif = self.state['current_file_tree'].random_copy_modif()
@@ -407,6 +491,13 @@ class UserSimulatorFB(UserSimulator):
             print('DEBUG: tree similarity')
             print(self.state['current_similarity'])
 
+    def create_change_dir_desire(self, directory):
+        pD = 0.5
+        action = {'intent': self.Change_directory_desire}
+        if random.uniform(0, 1) < pD:
+            action['directory'] = directory
+        return action
+
     def generate_tree_desire_intent(self):
         """
         generate an action related to tree creation
@@ -456,7 +547,7 @@ class UserSimulatorFB(UserSimulator):
             result = next_dir(self.state['current_directory'], self.goal['end_directory'])
             if result is not None:
                 directory, dirs = result
-                return {'intent': self.Change_directory_desire, 'directory': directory}
+                return self.create_change_dir_desire(directory)
 
         if self.sub_goal_exists():
             return self.generate_sub_goal_intent()
@@ -470,7 +561,7 @@ class UserSimulatorFB(UserSimulator):
             if result is not None:
                 directory, dirs = result
                 self.add_change_directory_sub_goal(dirs)
-                return {'intent': self.Change_directory_desire, 'directory': directory}
+                return self.create_change_dir_desire(directory)
 
         is_file = 0
         if focused_file['delete']:
@@ -572,8 +663,6 @@ class UserSimulatorFB(UserSimulator):
 
 
 if __name__ == '__main__':
-    c = json.load(open('constants.json', 'r'))
-    sim = UserSimulatorFB(c, Graph())
-    print(sim.reset())
-    sim.add_change_directory_sub_goal(['~', 'dir1', 'dir2'])
-    print(sim.goal['sub_goal'])
+    chars = [chr(i) for i in range(ord('a'),ord('z')+1)]
+    random_name = ''.join([chars[random.randint(0, len(chars)-1)] for i in range(4)])
+    print(random_name)

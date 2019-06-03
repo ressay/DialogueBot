@@ -163,9 +163,11 @@ class UserHuman(object):
 
 if __name__ == '__main__':
 
-    # c = json.load(open('FileBrowserDM/constants.json', 'r'))
-    # user_sim = UserSimulatorFB(c,Graph())
-    user = UserHuman()
-    user.start_conversation()
+    c = json.load(open('FileBrowserDM/constants.json', 'r'))
+    user_sim = UserSimulatorFB(c,Graph())
+    agent = UserAgent(user_sim)
+    agent.start_conversation()
+    # user = UserHuman()
+    # user.start_conversation()
 
 

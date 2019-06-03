@@ -169,14 +169,34 @@
       rdfs:subClassOf :Act_parameter .
 
 
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#File_name
+:File_name rdf:type owl:Class ;
+           rdfs:subClassOf :Slot .
+
+
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Move_file
 :Move_file rdf:type owl:Class ;
            rdfs:subClassOf :Agent_action .
 
 
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#New_name
+:New_name rdf:type owl:Class ;
+          rdfs:subClassOf :Slot .
+
+
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Old_name
+:Old_name rdf:type owl:Class ;
+          rdfs:subClassOf :Slot .
+
+
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Open_file
 :Open_file rdf:type owl:Class ;
            rdfs:subClassOf :Agent_action .
+
+
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Parent_directory
+:Parent_directory rdf:type owl:Class ;
+                  rdfs:subClassOf :Slot .
 
 
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#RegFile
@@ -187,6 +207,11 @@
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Rename_file
 :Rename_file rdf:type owl:Class ;
              rdfs:subClassOf :Agent_action .
+
+
+###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Slot
+:Slot rdf:type owl:Class ;
+      rdfs:subClassOf :Act_parameter .
 
 
 ###  http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#U_act_desire
