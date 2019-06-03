@@ -320,7 +320,7 @@ class UserSimulatorFB(UserSimulator):
                 if 'parent_directory' in sub_goal:
                     return sub_goal['parent_directory']
                 if 'origin' in sub_goal:
-                    return FileTreeSimulator.last_dir_in_path(sub_goal['orihin'])
+                    return FileTreeSimulator.last_dir_in_path(sub_goal['origin'])
             if slot == 'dest' and 'dest' in sub_goal:
                 return FileTreeSimulator.last_dir_in_path(sub_goal['dest'])
         elif sub_goal['name'] == 'Rename_file':
