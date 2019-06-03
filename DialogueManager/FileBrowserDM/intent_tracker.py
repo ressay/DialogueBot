@@ -159,18 +159,18 @@ class ActionTracker(object):
 
     def update_files_nodes(self):
         self.current_action_info['nodes_info'] = self.nodes_updater[self.intent_tracker.current_intent_info['name']]()
-        print('nodes:', self.current_action_info['nodes_info'])
+        # print('nodes:', self.current_action_info['nodes_info'])
 
     def get_possible_actions(self):
         actions = []
         for key in self.intent_tracker.current_intent_requirements:
-            print('start', key)
+            # print('start', key)
             if key == 'name':
-                print('no name')
+                # print('no name')
                 continue
             needs = self.intent_tracker.get_request_key_needs(key)
             if needs is None:
-                print('needs is None')
+                # print('needs is None')
                 continue
             if key in self.file_node_slot_filler:
                 needs['file_node'] = self.current_action_info[self.file_node_slot_filler[key]]
@@ -209,7 +209,7 @@ class ActionTracker(object):
     def possible_actions_change_dir(self):
         candidates = self.current_action_info['nodes_info']['candidate_nodes']
         if candidates is None or len(candidates) == 0:
-            print('out here because candidates is ', candidates)
+            # print('out here because candidates is ', candidates)
             return []
         actions = []
         for node in candidates:
