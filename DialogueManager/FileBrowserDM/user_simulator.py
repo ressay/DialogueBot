@@ -139,7 +139,7 @@ class UserSimulatorFB(UserSimulator):
             success = FAIL
             user_response = self._end_response()
         else:
-            try:
+            # try:
                 success = self.update_state(agent_action)
                 if success:
                     done = True
@@ -148,9 +148,9 @@ class UserSimulatorFB(UserSimulator):
                     agent_intent = agent_action['intent']
                     assert agent_intent in self.user_responses, 'Not acceptable agent action'
                     user_response = self.user_responses[agent_intent](agent_action)
-            except Exception as e:
-                print('ERROR HAPPENED AND IGNORING IT: ', e)
-                return self._default_response(), -5, False, 0
+            # except Exception as e:
+            #     print('ERROR HAPPENED AND IGNORING IT: ', e)
+            #     return self._default_response(), -5, False, 0
         self.state['current_uAction'] = user_response
         reward = self.reward_function(agent_action, success)
         self.print_debug()
@@ -226,12 +226,14 @@ class UserSimulatorFB(UserSimulator):
                 if agent_action['intent'] == 'inform' and 'paths' in agent_action:
                     self.subgoal_reward = 0
                     paths = agent_action['paths']
-                    f, m = self.state['current_file_tree'].lookup_file_name(sub_goal['file'])
+                    r = self.state['current_file_tree'].lookup_file_name(sub_goal['file'])
                     self.subgoal_reward = -2
-                    for path in paths:
-                        if FileTreeSimulator.equal_paths(m['tree_sim'].path(True), path):
-                            self.subgoal_reward = 2
-                            break
+                    if r is not None:
+                        f, m = r
+                        for path in paths:
+                            if FileTreeSimulator.equal_paths(m['tree_sim'].path(True), path):
+                                self.subgoal_reward = 2
+                                break
 
                     self.goal['sub_goal'].remove(sub_goal)
             if sub_goal['name'] == 'Rename_file':
@@ -412,19 +414,25 @@ class UserSimulatorFB(UserSimulator):
             # add subgoal
             if random.uniform(0, 1) <= pCM + pS + pOF + pRF:
                 if random.uniform(0, pCM + pS + pOF + pRF) <= pRF:
-                    f, m = self.state['current_file_tree'].get_random_file()
-                    chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
-                    random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
-                    self.add_rename_sub_goal(m['name'],random_name,m['tree_sim'].parent.name)
-                    self.max_round += 6
+                    r = self.state['current_file_tree'].get_random_file()
+                    if r is not None:
+                        f, m = r
+                        chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+                        random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
+                        self.add_rename_sub_goal(m['name'],random_name,m['tree_sim'].parent.name)
+                        self.max_round += 6
                 elif random.uniform(0, pCM + pS + pOF) <= pOF:
-                    f, m = self.state['current_file_tree'].get_random_file()
-                    self.add_open_sub_goal(m['name'], m['tree_sim'].parent.name)
-                    self.max_round += 2
+                    r = self.state['current_file_tree'].get_random_file()
+                    if r is not None:
+                        f, m = r
+                        self.add_open_sub_goal(m['name'], m['tree_sim'].parent.name)
+                        self.max_round += 2
                 elif random.uniform(0, pCM + pS) <= pS:
-                    f, m = self.state['current_file_tree'].get_random_file()
-                    self.add_search_sub_goal(m['name'])
-                    self.max_round += 2
+                    r = self.state['current_file_tree'].get_random_file()
+                    if r is not None:
+                        f, m = r
+                        self.add_search_sub_goal(m['name'])
+                        self.max_round += 2
                 else:
                     if random.uniform(0, 1) < 0.5:
                         modif = self.state['current_file_tree'].random_copy_modif()
