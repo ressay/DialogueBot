@@ -340,7 +340,8 @@ class FileTreeSimulator(object):
             tree_sim = self
         f, m = tree_sim.get_file_by_name(old_name)
         self.remove_file(old_name, path)
-        self.add_file(new_name, f, path)
+        f, m2 = self.add_file(new_name, f, path)
+        m2['tree_sim'].addAll_tree(m['tree_sim'].tree())
 
     def add_file(self, file_name, t, p=None, create_path=False):
         if not p:
@@ -551,5 +552,5 @@ if __name__ == '__main__':
     tree2.print_tree()
     # print(tree2.random_modifications())
     tree2.print_tree()
-    tree2.rename_file('ya','kjksdfhdjk','Public/khobz')
+    tree2.rename_file('Public','kjksdfhdjk','')
     tree2.print_tree()
