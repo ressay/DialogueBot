@@ -139,7 +139,7 @@ class UserSimulatorFB(UserSimulator):
             success = FAIL
             user_response = self._end_response()
         else:
-            # try:
+            try:
                 success = self.update_state(agent_action)
                 if success:
                     done = True
@@ -148,9 +148,9 @@ class UserSimulatorFB(UserSimulator):
                     agent_intent = agent_action['intent']
                     assert agent_intent in self.user_responses, 'Not acceptable agent action'
                     user_response = self.user_responses[agent_intent](agent_action)
-            # except Exception as e:
-            #     print('ERROR HAPPENED AND IGNORING IT: ', e)
-            #     return self._default_response(), -5, False, 0
+            except Exception as e:
+                print('ERROR HAPPENED AND IGNORING IT: ', e)
+                return self._default_response(), -5, False, 0
         self.state['current_uAction'] = user_response
         reward = self.reward_function(agent_action, success)
         self.print_debug()
