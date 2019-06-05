@@ -875,9 +875,12 @@ class StateTrackerFB(StateTracker):
             return None
         # nodes = self.nodes_by_name[file_name]
         nodes = [n for n in self.nodes_by_name[file_name] if not exists or n in self.file_exists]
+        for node in nodes:
+            if node not in self.file_type:
+                print('THIS IS IMPOSSIBLE NODE NOT IN FILETYPE BUT EXISTS')
         if 'parent_directory' in file_info:
             parent = file_info['parent_directory']
-            nodes = [n for n in self.nodes_by_name[file_name]
+            nodes = [n for n in nodes
                      if n in self.parent and self.name_by_node[self.parent[n]] == parent
                      ]
             if not len(nodes):
