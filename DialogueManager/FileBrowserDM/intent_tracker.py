@@ -295,10 +295,18 @@ class ActionTracker(object):
         actions = []
         infos = self.intent_tracker.current_intent_info
         for node in candidates:
-            file_type = 'directory' if self.state_tracker.file_type[node] == fbrowser.Directory else 'file'
-            actions.append({'intent': 'Delete_file', 'file_name': infos['file_name'], 'file_type': file_type,
-                            'path': self.state_tracker.get_path_with_real_root(node, False),
-                            'action_node': fbrowser.Delete_file, 'file_node': node})
+            try:
+                file_type = 'directory' if self.state_tracker.file_type[node] == fbrowser.Directory else 'file'
+                actions.append({'intent': 'Delete_file', 'file_name': infos['file_name'], 'file_type': file_type,
+                                'path': self.state_tracker.get_path_with_real_root(node, False),
+                                'action_node': fbrowser.Delete_file, 'file_node': node})
+            except KeyError as e:
+                print(e)
+                if node not in self.state_tracker.file_exists:
+                    print('freaking it does not exist, how come!')
+                else:
+                    print('well it exists')
+                    print(self.state_tracker.get_path_with_real_root(node))
         return actions
 
     def possible_actions_move(self):
