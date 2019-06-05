@@ -206,6 +206,7 @@ class ActionTracker(object):
         # print('nodes:', self.current_action_info['nodes_info'])
 
     def get_possible_actions(self):
+        self.update_files_nodes()
         actions = []
         for key in self.intent_tracker.current_intent_requirements:
             # print('start', key)
@@ -307,6 +308,8 @@ class ActionTracker(object):
                 else:
                     print('well it exists')
                     print(self.state_tracker.get_path_with_real_root(node))
+                print(candidates)
+                raise e
         return actions
 
     def possible_actions_move(self):

@@ -126,7 +126,7 @@ class FileTreeSimulator(object):
         _, f = f
         origin = f['tree_sim'].path(True)
         dest = d['tree_sim'].path()
-        if dest == origin:
+        if self.equal_paths(dest,origin):
             dirs.remove((o, d))
             d = self.get_random_file(dirs)
             if d is None:
