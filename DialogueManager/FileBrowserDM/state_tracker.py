@@ -40,7 +40,9 @@ class StateTrackerFB(StateTracker):
             'parent_directory': fbrowser.Parent_directory,
             'old_name': fbrowser.Old_name,
             'new_name': fbrowser.New_name,
-            'directory': fbrowser.File_name
+            'directory': fbrowser.File_name,
+            'dest': fbrowser.File_name,
+            'origin': fbrowser.Parent_directory
         }
         self.children = {}
         self.parent = {}
@@ -230,7 +232,7 @@ class StateTrackerFB(StateTracker):
         triplets = []
         if user_action['slot'] == 'directory':
             self.action_tracker.set_current_action(user_action)
-            triplets.append((fbrowser.User, fbrowser.U_request, fbrowser.Directory))
+            triplets.append((fbrowser.User, fbrowser.has_desire, fbrowser.A_inform))
             for key in self.inform_slots:
                 if key in user_action:
                     triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
@@ -240,7 +242,7 @@ class StateTrackerFB(StateTracker):
     def rename_triplets_u(self, user_action):
         triplets = []
         self.action_tracker.set_current_action(user_action)
-        triplets.append((fbrowser.User, fbrowser.Rename_file, fbrowser.Rename_file))
+        triplets.append((fbrowser.User, fbrowser.has_desire, fbrowser.Rename_file))
         for key in self.inform_slots:
             if key in user_action:
                 triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
@@ -250,7 +252,7 @@ class StateTrackerFB(StateTracker):
     def open_triplets_u(self, user_action):
         triplets = []
         self.action_tracker.set_current_action(user_action)
-        triplets.append((fbrowser.User, fbrowser.Open_file, fbrowser.Open_file))
+        triplets.append((fbrowser.User, fbrowser.has_desire, fbrowser.Open_file))
         for key in self.inform_slots:
             if key in user_action:
                 triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
@@ -260,7 +262,7 @@ class StateTrackerFB(StateTracker):
     def change_dir_triplets_u(self, user_action):
         triplets = []
         self.action_tracker.set_current_action(user_action)
-        triplets.append((fbrowser.User, fbrowser.Change_directory, fbrowser.Directory))
+        triplets.append((fbrowser.User, fbrowser.has_desire, fbrowser.Change_directory))
         for key in self.inform_slots:
             if key in user_action:
                 triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
@@ -364,9 +366,16 @@ class StateTrackerFB(StateTracker):
         return triplets
 
     def copy_move_desire_triplets_u(self, user_action):
-        self.action_tracker.clear_current_action()
+        # self.action_tracker.clear_current_action()
         triplets = []
+        self.action_tracker.set_current_action(user_action)
         desire = fbrowser.Move_file if user_action['intent'] == usim.Move_file_desire else fbrowser.Copy_file
+        triplets.append((fbrowser.User, fbrowser.has_desire, desire))
+        for key in self.inform_slots:
+            if key in user_action:
+                triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+        return triplets
         if 'origin' in user_action:
             user_action['parent_directory'] = user_action['origin']
         file_nodes = self.get_files_from_graph(user_action)
@@ -385,14 +394,20 @@ class StateTrackerFB(StateTracker):
         return triplets
 
     def agent_actions_desire_triplets_u(self, user_action):
-        self.action_tracker.clear_current_action()
         triplets = []
         desires = {
             usim.Change_directory_desire: (fbrowser.Change_directory, fbrowser.Directory),
             usim.Delete_file_desire: (fbrowser.Delete_file, fbrowser.File),
             usim.Create_file_desire: (fbrowser.Create_file, None)
         }
+        self.action_tracker.set_current_action(user_action)
         desire, file_type = desires[user_action['intent']]
+        triplets.append((fbrowser.User, fbrowser.has_desire, desire))
+        for key in self.inform_slots:
+            if key in user_action:
+                triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
+                triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
+        return triplets
         if file_type is None:
             file_type = fbrowser.File if 'is_file' not in user_action \
                 else fbrowser.Directory if not user_action['is_file'] else fbrowser.RegFile
@@ -492,15 +507,27 @@ class StateTrackerFB(StateTracker):
         triplets = []
         file_node = agent_action['file_node']
         t = fbrowser.RegFile if agent_action['is_file'] else fbrowser.Directory
+        parent_node = agent_action['parent_node']
         # action_node = BNode()
         # triplets.append((action_node, onto.rdf_type, fbrowser.Create_file))
-        triplets.append((fbrowser.Create_file, fbrowser.has_parameter, file_node))
+        triplets.append((file_node, onto.rdf_type, t))
+        triplets.append((file_node, fbrowser.has_name, Literal(agent_action['file_name'])))
+        triplets.append((parent_node, fbrowser.contains_file, file_node))
+        self.add_triplets(triplets)
+        self.add_to_all_triplets(triplets)
+        triplets = [(fbrowser.Create_file, fbrowser.has_parameter, file_node)]
         # triplets.append((fbrowser.Agent, fbrowser.a_acted, action_node))
+
+        #     triplets.append((parent_dir, onto.rdf_type, fbrowser.Directory))
+        #     triplets.append((parent_dir, fbrowser.has_name, Literal(user_action['parent_directory'])))
+        #     triplets.append((parent_dir, fbrowser.contains_file, file_node))
         # update inner state
         self.file_type[file_node] = t
         result = self.add_file_existence(file_node)
         if result is not None:
             f, c = result
+            self.remove_file_existence(file_node,True)
+            # TODO raise this error
             # print('file exists: ',f,' and ',c,' names: ',self.name_by_node[f], ' and ', self.name_by_node[c],
             #       ' paths: ', self.get_path_of_file_node(f), ' and ', self.get_path_of_file_node(c))
             # raise FileNameExistsError(self.get_path_of_file_node(f), self.name_by_node[f],
@@ -544,7 +571,8 @@ class StateTrackerFB(StateTracker):
         result = self.add_file_existence(newNode)
         if result is not None:
             f, c = result
-
+            self.remove_file_existence(newNode,True)
+            # TODO raise this error
             # print('file exists: ',f,' and ',c,' names: ',self.name_by_node[f], ' and ', self.name_by_node[c],
             #       ' paths: ', self.get_path_of_file_node(f), ' and ', self.get_path_of_file_node(c))
             # raise FileNameExistsError(self.get_path_of_file_node(f), self.name_by_node[f],
@@ -682,7 +710,8 @@ class StateTrackerFB(StateTracker):
     def remove_file_existence(self, file_node, from_all=False, rm_from_parent=True):
         if self.has_ancestor(self.current_path_node, file_node):
             raise RemoveCurrentDirError('removing directory containing current path')
-        self.file_exists.remove(file_node)
+        if file_node in self.file_exists:
+            self.file_exists.remove(file_node)
         if file_node in self.children:
             for c in self.children[file_node]:
                 if c in self.file_exists:
@@ -779,6 +808,7 @@ class StateTrackerFB(StateTracker):
             if s == self.root:
                 return False
             s = self.parent[s]
+
 
     def set_file_in_inner_state(self, s, parent=None):
         if parent is None:

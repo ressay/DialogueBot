@@ -139,7 +139,7 @@ class UserSimulatorFB(UserSimulator):
             success = FAIL
             user_response = self._end_response()
         else:
-            try:
+            # try:
                 success = self.update_state(agent_action)
                 if success:
                     done = True
@@ -148,9 +148,9 @@ class UserSimulatorFB(UserSimulator):
                     agent_intent = agent_action['intent']
                     assert agent_intent in self.user_responses, 'Not acceptable agent action'
                     user_response = self.user_responses[agent_intent](agent_action)
-            except Exception as e:
-                print('ERROR HAPPENED AND IGNORING IT: ', e)
-                return self._default_response(), -5, False, 0
+            # except Exception as e:
+            #     print('ERROR HAPPENED AND IGNORING IT: ', e)
+            #     return self._default_response(), -5, False, 0
         self.state['current_uAction'] = user_response
         reward = self.reward_function(agent_action, success)
         self.print_debug()
@@ -161,10 +161,10 @@ class UserSimulatorFB(UserSimulator):
             if 'success' in self.rewards:
                 return self.rewards['success']
             return 2
-        if self.sub_goal_exists():  # if there are pending sub_goals
-            reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
-            if reward:
-                return reward
+        # if self.sub_goal_exists():  # if there are pending sub_goals
+        #     reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
+        #     if reward:
+        #         return reward
         if self.subgoal_reward is not None:
             reward = self.subgoal_reward
             self.subgoal_reward = None
@@ -219,9 +219,12 @@ class UserSimulatorFB(UserSimulator):
                 current_dir = self.state['current_directory']
                 if current_dir[-1] == '/': current_dir = current_dir[:-1]
                 if last_dir[-1] == '/': last_dir = last_dir[:-1]
-                if sub_goal['name'] == 'Change_directory' and current_dir == last_dir:
+                if current_dir == last_dir:
                     self.goal['sub_goal'].remove(sub_goal)
                     self.subgoal_reward = len(sub_goal['dirs'])
+                elif current_dir in sub_goal['dirs']:
+                    self.subgoal_reward = sub_goal['dirs'].index(current_dir) + 1
+                    del sub_goal['dirs'][:self.subgoal_reward]
             if sub_goal['name'] == 'Search_file':
                 if agent_action['intent'] == 'inform' and 'paths' in agent_action:
                     self.subgoal_reward = 0
@@ -316,7 +319,7 @@ class UserSimulatorFB(UserSimulator):
         if sub_goal['name'] in ('Copy_file', 'Move_file', 'Search_file', 'Open_file'):
             if slot == 'file_name':
                 return sub_goal['file']
-            if slot == 'parent_directory':
+            if slot == 'parent_directory' or slot == 'origin':
                 if 'parent_directory' in sub_goal:
                     return sub_goal['parent_directory']
                 if 'origin' in sub_goal:
@@ -405,10 +408,10 @@ class UserSimulatorFB(UserSimulator):
         self.state['previous_directory'] = self.state['current_directory']
         if intent in self.agent_tree_actions:
             self.apply_agent_tree_action(agent_action, f_sim)
-            self.generate_next_focused_file()
 
         elif intent == 'Change_directory':
             self.state['current_directory'] = agent_action['new_directory']
+        self.generate_next_focused_file()
         self.update_sub_goals(agent_action)
         if intent in self.agent_tree_actions:
             # add subgoal
@@ -445,6 +448,7 @@ class UserSimulatorFB(UserSimulator):
                             self.add_move_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
                             self.max_round += 8
 
+
         found, total = f_sim.tree_similarity(goal_sim)
         self.state['previous_similarity'] = self.state['current_similarity']
         self.state['current_similarity'] = [found, total]
@@ -454,6 +458,7 @@ class UserSimulatorFB(UserSimulator):
     def generate_next_focused_file(self):
         f_sim = self.state['current_file_tree']
         result = f_sim.get_first_dissimilarity(self.goal['goal_tree'])
+        # print('next was called, result is: ', result)
         if result is not None:
             f, m, d = result
             self.state['focused_file'] = {
@@ -564,7 +569,7 @@ class UserSimulatorFB(UserSimulator):
         file_map = focused_file['map']
 
         if random.uniform(0, 1) < proba_change_dir:
-            result = next_dir(self.state['current_directory'], file_map['parent'].path())
+            result = next_dir(self.state['current_directory'], file_map['tree_sim'].parent.path())
 
             if result is not None:
                 directory, dirs = result
@@ -581,7 +586,7 @@ class UserSimulatorFB(UserSimulator):
 
         response = {'intent': intent}
         name = focused_file['map']['name']
-        parent_name = focused_file['map']['parent'].name
+        parent_name = focused_file['map']['tree_sim'].parent.name
         params = {'file_name': name, 'parent_directory': parent_name, 'is_file': is_file}
 
         if random.uniform(0, 1) > proba_file:
@@ -654,14 +659,14 @@ class UserSimulatorFB(UserSimulator):
         elif requested == 'parent_directory':
             if 'file_name' not in agent_action \
                     or focused_file['name'] == agent_action['file_name']:
-                parent = focused_file['parent']
+                parent = focused_file['tree_sim'].parent
             else:
                 name = agent_action['file_name']
                 file = self.goal['goal_tree'].lookup_file_name(name)
                 if file is None:
                     return self._default_response()
                 f, m = file
-                parent = m['parent']
+                parent = m['tree_sim'].parent
             response['parent_directory'] = parent.name
         else:
             return self._default_response()

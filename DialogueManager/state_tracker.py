@@ -210,6 +210,8 @@ class StateTracker(object):
         self.add_triplets(graph.triples((None, None, None)))
 
     def add_triplets(self, triplets):
+        # for s,p,o in triplets:
+        #     print(s,p,o)
         self.graph.add_all(triplets)
         self.ontology += triplets
         self.update_inner_state(triplets)

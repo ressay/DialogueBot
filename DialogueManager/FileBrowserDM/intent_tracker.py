@@ -1,3 +1,5 @@
+from rdflib import BNode
+
 from DialogueManager.FileBrowserDM.user_simulator import UserSimulatorFB
 import Ontologies.onto_fbrowser as fbrowser
 
@@ -18,17 +20,42 @@ class IntentTracker(object):
     change_directory_requirements = {
         'directory': (True, [])
     }
+    delete_file_requirements = {
+        'file_name': (True, []),
+        'parent_directory': (False, ['file_name'])
+    }
+    create_file_requirements = {
+        'file_name': (True, []),
+        'parent_directory': (False, ['file_name']),
+        'is_file': (True, ['file_name'])
+    }
+    move_file_requirements = {
+        'file_name': (True, []),
+        'dest': (True, ['file_name']),
+        'origin': (False, ['file_name'])
+    }
+    copy_file_requirements = {
+        'file_name': (True, []),
+        'dest': (True, ['file_name']),
+        'origin': (False, ['file_name'])
+    }
     intents_requirements = {
         UserSimulatorFB.Open_file_desire: open_file_requirements,
         UserSimulatorFB.Rename_file_desire: rename_file_requirements,
         UserSimulatorFB.u_request: search_file_requirements,
-        UserSimulatorFB.Change_directory_desire: change_directory_requirements
+        UserSimulatorFB.Change_directory_desire: change_directory_requirements,
+        UserSimulatorFB.Create_file_desire: create_file_requirements,
+        UserSimulatorFB.Delete_file_desire: delete_file_requirements,
+        UserSimulatorFB.Move_file_desire: move_file_requirements,
+        UserSimulatorFB.Copy_file_desire: copy_file_requirements
     }
     slot_converter = {
         'directory': ['file_name'],
         'old_name': ['old_name', 'file_name'],
         'new_name': ['new_name', 'file_name'],
-        'parent_directory': ['parent_directory', 'file_name']
+        'parent_directory': ['parent_directory', 'file_name'],
+        'dest': ['dest', 'file_name', 'parent_directory'],
+        'origin': ['origin', 'file_name', 'parent_directory']
     }
 
     def __init__(self) -> None:
@@ -106,23 +133,39 @@ class ActionTracker(object):
         UserSimulatorFB.Open_file_desire: fbrowser.Open_file,
         UserSimulatorFB.Rename_file_desire: fbrowser.Rename_file,
         UserSimulatorFB.u_request: fbrowser.A_inform,
-        UserSimulatorFB.Change_directory_desire: fbrowser.Change_directory
+        UserSimulatorFB.Change_directory_desire: fbrowser.Change_directory,
+        UserSimulatorFB.Copy_file_desire: fbrowser.Copy_file,
+        UserSimulatorFB.Move_file_desire: fbrowser.Move_file,
+        UserSimulatorFB.Delete_file_desire: fbrowser.Delete_file,
+        UserSimulatorFB.Create_file_desire: fbrowser.Create_file
     }
 
     def __init__(self, state_tracker) -> None:
+        """
+
+        :param StateTrackerFB state_tracker:
+        """
         super().__init__()
         self.state_tracker = state_tracker
         self.nodes_updater = {
             UserSimulatorFB.Open_file_desire: self.get_open_file_nodes,
             UserSimulatorFB.Rename_file_desire: self.get_rename_file_nodes,
             UserSimulatorFB.u_request: self.get_search_file_nodes,
-            UserSimulatorFB.Change_directory_desire: self.get_change_directory_nodes
+            UserSimulatorFB.Change_directory_desire: self.get_change_directory_nodes,
+            UserSimulatorFB.Create_file_desire: self.get_create_file_nodes,
+            UserSimulatorFB.Delete_file_desire: self.get_delete_file_nodes,
+            UserSimulatorFB.Move_file_desire: self.get_move_file_nodes,
+            UserSimulatorFB.Copy_file_desire: self.get_copy_file_nodes
         }
         self.possible_actions = {
             UserSimulatorFB.Open_file_desire: self.possible_actions_open,
             UserSimulatorFB.Rename_file_desire: self.possible_actions_rename,
             UserSimulatorFB.u_request: self.possible_actions_search,
-            UserSimulatorFB.Change_directory_desire: self.possible_actions_change_dir
+            UserSimulatorFB.Change_directory_desire: self.possible_actions_change_dir,
+            UserSimulatorFB.Create_file_desire: self.possible_actions_create,
+            UserSimulatorFB.Delete_file_desire: self.possible_actions_delete,
+            UserSimulatorFB.Move_file_desire: self.possible_actions_move,
+            UserSimulatorFB.Copy_file_desire: self.possible_actions_copy
         }
         self.current_action_info = {
             'desire': None,
@@ -137,6 +180,7 @@ class ActionTracker(object):
         self.update_files_nodes()
 
     def set_current_action(self, user_action):
+        self.clear_current_action()
         self.intent_tracker.set_current_intent(user_action)
         self.update_action_info()
 
@@ -227,6 +271,74 @@ class ActionTracker(object):
                     'action_node': fbrowser.U_inform, 'file_node': fbrowser.U_inform}]
         return actions
 
+    def possible_actions_create(self):
+        candidates = self.current_action_info['nodes_info']['candidate_nodes']
+        if candidates is None or len(candidates) == 0:
+            return []
+        node = candidates[0]
+        parent_nodes = self.current_action_info['nodes_info']['parent_nodes']
+        if parent_nodes is None or len(parent_nodes) == 0:
+            return []
+        actions = []
+        infos = self.intent_tracker.current_intent_info
+        file_type = 'file' if infos['is_file'] else 'directory'
+        for p in parent_nodes:
+            actions.append({'intent': 'Create_file', 'file_name': infos['file_name'], 'is_file': infos['is_file'],
+                            'path': self.state_tracker.get_path_with_real_root(p), 'file_node': node,
+                            'action_node': fbrowser.Create_file, 'file_type': file_type, 'parent_node': p})
+        return actions
+
+    def possible_actions_delete(self):
+        candidates = self.current_action_info['nodes_info']['candidate_nodes']
+        if candidates is None or len(candidates) == 0:
+            return []
+        actions = []
+        infos = self.intent_tracker.current_intent_info
+        for node in candidates:
+            file_type = 'directory' if self.state_tracker.file_type[node] == fbrowser.Directory else 'file'
+            actions.append({'intent': 'Delete_file', 'file_name': infos['file_name'], 'file_type': file_type,
+                            'path': self.state_tracker.get_path_with_real_root(node, False),
+                            'action_node': fbrowser.Delete_file, 'file_node': node})
+        return actions
+
+    def possible_actions_move(self):
+        candidates = self.current_action_info['nodes_info']['candidate_nodes']
+        if candidates is None or len(candidates) == 0:
+            return []
+        dest_nodes = self.current_action_info['nodes_info']['dest_nodes']
+        if dest_nodes is None or len(dest_nodes) == 0:
+            return []
+
+        actions = []
+        infos = self.intent_tracker.current_intent_info
+        for node in candidates:
+            for dest in dest_nodes:
+                actions.append({'intent': 'Move_file', 'file_name': infos['file_name'],
+                                'origin': self.state_tracker.get_path_with_real_root(node, False),
+                                'dest': self.state_tracker.get_path_with_real_root(dest), 'action_node': dest,
+                                'file_node': node, 'dest_node': dest})
+        return actions
+
+    def possible_actions_copy(self):
+        candidates = self.current_action_info['nodes_info']['candidate_nodes']
+        if candidates is None or len(candidates) == 0:
+            print('out candidates')
+            return []
+        dest_nodes = self.current_action_info['nodes_info']['dest_nodes']
+        if dest_nodes is None or len(dest_nodes) == 0:
+            print('out dest')
+            return []
+
+        actions = []
+        infos = self.intent_tracker.current_intent_info
+        for node in candidates:
+            for dest in dest_nodes:
+                actions.append({'intent': 'Copy_file', 'file_name': infos['file_name'],
+                                'origin': self.state_tracker.get_path_with_real_root(node, False),
+                                'dest': self.state_tracker.get_path_with_real_root(dest), 'action_node': dest,
+                                'file_node': node, 'dest_node': dest})
+        return actions
+
     """
     FILE NODES UPDATE METHODS
     """
@@ -252,6 +364,52 @@ class ActionTracker(object):
             file_infos['file_name'] = self.intent_tracker.current_intent_info['directory']
         candidates = self.state_tracker.get_files_from_graph(file_infos)
         return {'candidate_nodes': candidates if candidates is not None else []}
+
+    def get_create_file_nodes(self):
+        file_infos = {}
+        if 'parent_directory' in self.intent_tracker.current_intent_info:
+            file_infos['file_name'] = self.intent_tracker.current_intent_info['parent_directory']
+        candidates = self.state_tracker.get_files_from_graph(file_infos)
+        if 'create_node' not in self.current_action_info:
+            self.current_action_info['create_node'] = BNode()
+            self.state_tracker.graph._add_node(self.current_action_info['create_node'])
+        node = self.current_action_info['create_node']
+        return {
+            'candidate_nodes': [node],
+            'parent_nodes': candidates if candidates is not None else [self.state_tracker.current_path_node]
+        }
+
+    def get_delete_file_nodes(self):
+        candidates = self.state_tracker.get_files_from_graph(self.intent_tracker.current_intent_info)
+        return {'candidate_nodes': candidates if candidates is not None else []}
+
+    def get_move_file_nodes(self):
+        file_infos = self.intent_tracker.current_intent_info.copy()
+        if 'origin' in self.intent_tracker.current_intent_info:
+            file_infos['parent_directory'] = self.intent_tracker.current_intent_info['origin']
+        candidates = self.state_tracker.get_files_from_graph(file_infos)
+        file_infos = {}
+        if 'dest' in self.intent_tracker.current_intent_info:
+            file_infos['file_name'] = self.intent_tracker.current_intent_info['dest']
+        dest_nodes = self.state_tracker.get_files_from_graph(file_infos)
+        return {
+            'candidate_nodes': candidates if candidates is not None else [],
+            'dest_nodes': dest_nodes if dest_nodes is not None else []
+        }
+
+    def get_copy_file_nodes(self):
+        file_infos = self.intent_tracker.current_intent_info.copy()
+        if 'origin' in self.intent_tracker.current_intent_info:
+            file_infos['parent_directory'] = self.intent_tracker.current_intent_info['origin']
+        candidates = self.state_tracker.get_files_from_graph(file_infos)
+        file_infos = {}
+        if 'dest' in self.intent_tracker.current_intent_info:
+            file_infos['file_name'] = self.intent_tracker.current_intent_info['dest']
+        dest_nodes = self.state_tracker.get_files_from_graph(file_infos)
+        return {
+            'candidate_nodes': candidates if candidates is not None else [],
+            'dest_nodes': dest_nodes if dest_nodes is not None else []
+        }
 
     """
     STATIC METHODS

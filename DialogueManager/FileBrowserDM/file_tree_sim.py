@@ -251,6 +251,8 @@ class FileTreeSimulator(object):
         return self.create_rdfgraph_from_tree(tree)
 
     def get_file_dict_from_path(self, path):
+        if path[-1] != '/':
+            path += '/'
         p = self.path()
         if path[:len(p)] == p:
             path = path[len(p):]
@@ -289,8 +291,10 @@ class FileTreeSimulator(object):
                     m['tree_sim'].addAll_tree(l['tree_sim'].tree())
 
     def create_path(self, path):
+        if path[-1] != '/':
+            path += '/'
         p = self.path()
-        if path[:len(p)] == p:
+        if self.equal_paths(path[:len(p)], p):
             path = path[len(p):]
         dirs = path.split('/')
         if dirs[-1] == '':
@@ -359,7 +363,7 @@ class FileTreeSimulator(object):
                 parent = m['tree_sim']
                 return parent.add_file(file_name, t)
         file_data = (t, {'tree_sim': FileTreeSimulator([], file_name, self),
-                         'name': file_name, 'parent': self})
+                         'name': file_name})
         if file_name in tree_map:
             return tree_map[file_name]
         tree_map[file_name] = file_data
@@ -461,7 +465,7 @@ class FileTreeSimulator(object):
             tree = self.tree()
             print(self.name + ":")
         for f, m in tree:
-            print(offset, m['name'])
+            print(offset, m['name'], ' parent: ', m['tree_sim'].parent.name)
             if not f:
                 self.print_tree(m['tree_sim'].tree(), offset[:-1] + '-->')
 
