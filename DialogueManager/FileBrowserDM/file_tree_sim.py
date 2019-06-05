@@ -328,12 +328,22 @@ class FileTreeSimulator(object):
         return f2, m2
 
     def move_file(self, file_name, origin, dest):
-        assert dest != origin, 'destination "'+dest+'" path is same as origin "'+origin+'"'
-        if len(origin) != 0 and origin[-1] != '/': origin += '/'
+        #assert dest != origin, 'destination "'+dest+'" path is same as origin "'+origin+'"'
+        if len(origin) != 0 and origin[-1] != '/':
+            origin += '/'
+        if len(dest) != 0 and dest[-1] != '/':
+            dest += '/'
+        if self.equal_paths(dest, origin):
+            return
         path = origin + file_name
         assert dest[:min((len(path), len(dest)))] != path, 'destination "'+dest+'" path is inside origin "'+origin+'"'
+
         self.copy_file(file_name, origin, dest)
         self.remove_file(file_name, origin)
+        # try:
+        #     r = self.get_file_dict_from_path(dest + file_name)
+        # except:
+        #     print(dest, ' and ', origin)
 
     def rename_file(self, old_name, new_name, path):
         r = self.get_file_dict_from_path(path)
@@ -545,16 +555,25 @@ if __name__ == '__main__':
     # sim1.add_file('newf',1,'lala/haha',True)
     # f,m = sim1.lookup_file_name('newf')
     # print(m['tree_sim'].path(True))
-    tree = FileTreeSimulator.read_existing_dirs(max_depth=2,max_per_dir=2,directory=FileTreeSimulator.home)
+    # tree = FileTreeSimulator.read_existing_dirs(max_depth=2,max_per_dir=2,directory=FileTreeSimulator.home)
+    # # tree.print_tree()
+    # tree2 = tree.copy()
+    # tree2.copy_file('Videos','','Public')
     # tree.print_tree()
-    tree2 = tree.copy()
-    tree2.copy_file('Videos','','Public')
+    # tree2.print_tree()
+    # tree2.add_file('ya',1,'Public/khobz',True)
+    # tree2.copy_file('khobz','Public','Public/khobz')
+    # tree2.print_tree()
+    # # print(tree2.random_modifications())
+    # tree2.print_tree()
+    # tree2.rename_file('Public','kjksdfhdjk','')
+    # tree2.print_tree()
+    tree = FileTreeSimulator([])
+    tree.add_file('dir1', DIR)
+    tree.add_file('dir1', DIR, '~/dir1')
+    tree.add_file('dir2', DIR, '~/dir1')
+    tree.add_file('file2', FILE, '~/dir1/dir2')
+    tree.add_file('file1', FILE, '~/dir1')
     tree.print_tree()
-    tree2.print_tree()
-    tree2.add_file('ya',1,'Public/khobz',True)
-    tree2.copy_file('khobz','Public','Public/khobz')
-    tree2.print_tree()
-    # print(tree2.random_modifications())
-    tree2.print_tree()
-    tree2.rename_file('Public','kjksdfhdjk','')
-    tree2.print_tree()
+    tree.move_file('file1','~/dir1/','~/dir1')
+    tree.print_tree()

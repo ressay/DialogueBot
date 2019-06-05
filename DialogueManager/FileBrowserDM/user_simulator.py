@@ -413,6 +413,8 @@ class UserSimulatorFB(UserSimulator):
             self.state['current_directory'] = agent_action['new_directory']
         self.generate_next_focused_file()
         self.update_sub_goals(agent_action)
+        if len(self.goal['sub_goal']) > 1:
+            print("seems like it does surpass 1 :o :o")
         if intent in self.agent_tree_actions:
             # add subgoal
             if random.uniform(0, 1) <= pCM + pS + pOF + pRF:
