@@ -623,7 +623,8 @@ class UserSimulatorFB(UserSimulator):
     def _inform_response(self, agent_action):
         if 'error' in agent_action:
             return self.create_change_dir_desire(self.state['current_file_tree'].path())
-
+        else:
+            return self._build_response(agent_action)
     def _ask_response(self, agent_action):
         assert agent_action['intent'] == 'ask', 'intent is not "ask" in ask_response'
         asked_action = agent_action['action']
