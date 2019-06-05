@@ -214,7 +214,7 @@ class Agent(object):
         try:
             self.state_tracker.update_state_agent_action(action, update_encoding=self.use_graph_encoder)
         except RemoveCurrentDirError as e:
-            print('Remove Current file error')
+            # print('Remove Current file error')
             return action_index, {'intent': 'inform', 'error': e}
         return action_index, action
 

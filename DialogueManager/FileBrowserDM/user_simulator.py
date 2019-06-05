@@ -47,7 +47,7 @@ class UserSimulatorFB(UserSimulator):
             self.user_responses[a] = self._build_response
         self.user_responses['Change_directory'] = self._build_response
         self.user_responses['Open_file'] = self._build_response
-        self.user_responses['inform'] = self._build_response
+        self.user_responses['inform'] = self._inform_response
         self.user_responses['ask'] = self._ask_response
         self.user_responses['request'] = self._req_response
         self.debug = 0
@@ -619,6 +619,10 @@ class UserSimulatorFB(UserSimulator):
                     return {'intent': self.deny}
             return response
         return None
+
+    def _inform_response(self, agent_action):
+        if 'error' in agent_action:
+            return self.create_change_dir_desire(self.state['current_file_tree'].path())
 
     def _ask_response(self, agent_action):
         assert agent_action['intent'] == 'ask', 'intent is not "ask" in ask_response'
