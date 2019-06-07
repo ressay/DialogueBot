@@ -225,9 +225,9 @@ class ActionTracker(object):
                     needs['file_node'] = node
                     actions.append(self.create_request_action(key, needs))
         if self.intent_tracker.all_required_slots_filled():
-            print('slot filled')
+            # print('slot filled')
             actions += self.possible_actions[self.intent_tracker.current_intent_info['name']]()
-        print(self.intent_tracker.current_intent_info)
+        # print(self.intent_tracker.current_intent_info)
         return actions
 
     def possible_actions_open(self):
