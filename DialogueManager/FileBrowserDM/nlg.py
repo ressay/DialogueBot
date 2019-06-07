@@ -21,6 +21,12 @@ class Nlg_system(object):
                     "Can you give me the file's name please?",
                     "What is the name of the file?"
                 ],
+                'directory': [
+                    "What's the directory's name?",
+                    "Please give me the directory's name",
+                    "Can you give me the directory's name, please?",
+                    "What is the name of the directory?"
+                ],
                 'parent_directory': [
                     "What's <file_name>'s parent directory?",
                     "Please give me <file_name>'s parent directory",

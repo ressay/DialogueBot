@@ -33,7 +33,8 @@ class StateTrackerFB(StateTracker):
             usim.confirm: self.ask_triplets_u,
             usim.deny: self.ask_triplets_u,
             usim.default: self.default,
-            usim.end: self.default
+            usim.end: self.default,
+            'unknown': self.default
         }
         self.inform_slots = {
             'file_name': fbrowser.File_name,
@@ -163,6 +164,8 @@ class StateTrackerFB(StateTracker):
         self.special_actions = []
         if self.action_tracker.has_intent():
             actions = self.action_tracker.get_possible_actions()
+        else:
+            actions = [{'intent': 'default'}]
         for a in actions:
             a['ask_nodes'] = (a['action_node'], a['file_node'])
         action_nodes = [(m['action_node'], m['file_node']) for m in actions]
@@ -282,8 +285,7 @@ class StateTrackerFB(StateTracker):
                 if key in user_action:
                     triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
                     triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
-            #TODO remove this
-            assert len(triplets) > 0, "no keys found in inform" + str(user_action)
+            # assert len(triplets) > 0, "no keys found in inform" + str(user_action)
             return triplets
 
         if 'slot' in prev and prev['slot'] == 'parent_directory':
@@ -613,7 +615,7 @@ class StateTrackerFB(StateTracker):
         self.add_file_existence(root)
         self.file_type[root] = fbrowser.Directory
         triplets.append((root, onto.rdf_type, fbrowser.Directory))
-        self.nodes_by_name[name] = [root]
+        self.nodes_by_name[name.lower()] = [root]
         self.name_by_node[root] = name
         triplets.append((root, fbrowser.has_name, Literal(name)))
         self.current_path_node, self.current_path = root, name
@@ -724,7 +726,7 @@ class StateTrackerFB(StateTracker):
                     if c in self.name_by_node:
                         name = self.name_by_node[c]
                         del self.name_by_node[c]
-                        self.nodes_by_name[name].remove(c)
+                        self.nodes_by_name[name.lower()].remove(c)
                     if c in self.special_nodes:
                         del self.special_nodes[c]
             self.children[file_node].clear()
@@ -739,7 +741,7 @@ class StateTrackerFB(StateTracker):
                 del self.children[file_node]
             name = self.name_by_node[file_node]
             del self.name_by_node[file_node]
-            self.nodes_by_name[name].remove(file_node)
+            self.nodes_by_name[name.lower()].remove(file_node)
             if file_node in self.special_nodes:
                 del self.special_nodes[file_node]
             for node in self.special_nodes:
@@ -753,8 +755,8 @@ class StateTrackerFB(StateTracker):
         :param file_name:
         :return:
         """
-        assert file_name in self.nodes_by_name, str(file_name) + " not in inner state of state tracker"
-        node = self.choose_suitable_node(self.nodes_by_name[file_name])
+        assert file_name.lower() in self.nodes_by_name, str(file_name) + " not in inner state of state tracker"
+        node = self.choose_suitable_node(self.nodes_by_name[file_name.lower()])
         return self.get_path_of_file_node(node)
 
     def get_path_with_real_root(self, node, add_self=True):
@@ -833,13 +835,13 @@ class StateTrackerFB(StateTracker):
         o = str(o)
         if s in self.name_by_node:
             name = self.name_by_node[s]
-            self.nodes_by_name[name].remove(s)
-        if o not in self.nodes_by_name:
-            self.nodes_by_name[o] = []
-        if s not in self.nodes_by_name[o]:
-            self.nodes_by_name[o].append(s)
+            self.nodes_by_name[name.lower()].remove(s)
+        if o.lower() not in self.nodes_by_name:
+            self.nodes_by_name[o.lower()] = []
+        if s not in self.nodes_by_name[o.lower()]:
+            self.nodes_by_name[o.lower()].append(s)
         self.name_by_node[s] = o
-        nodes = self.nodes_by_name[o]
+        nodes = self.nodes_by_name[o.lower()]
         for node in nodes:
             if node not in self.parent and node != self.root:
                 print('something is wrong here set file name')
@@ -851,7 +853,7 @@ class StateTrackerFB(StateTracker):
         dirs = path.split('/')
         if dirs[-1] == "":
             del dirs[-1]
-        node = self.choose_suitable_node(self.nodes_by_name[dirs[0]])
+        node = self.choose_suitable_node(self.nodes_by_name[dirs[0].lower()])
         # TODO FIX ROOT THAT CAN BE /HOME/USER/ AFTER SPLIT ERRORS SHOULD HAPPEN
         for dir in dirs[1:]:
             children = self.children[node]
@@ -871,10 +873,10 @@ class StateTrackerFB(StateTracker):
         if 'file_name' not in file_info:
             return None
         file_name = file_info['file_name']
-        if file_name not in self.nodes_by_name:
+        if file_name.lower() not in self.nodes_by_name:
             return None
         # nodes = self.nodes_by_name[file_name]
-        nodes = [n for n in self.nodes_by_name[file_name] if not exists or n in self.file_exists]
+        nodes = [n for n in self.nodes_by_name[file_name.lower()] if not exists or n in self.file_exists]
         for node in nodes:
             if node not in self.file_type:
                 print('THIS IS IMPOSSIBLE NODE NOT IN FILETYPE BUT EXISTS')
@@ -886,6 +888,17 @@ class StateTrackerFB(StateTracker):
             if not len(nodes):
                 return None
         return set(nodes)
+
+    def get_current_path_files(self):
+        files = []
+        type_map = {
+            fbrowser.Directory: 'directory',
+            fbrowser.RegFile: 'file',
+            fbrowser.File: 'file'
+        }
+        for child in self.children[self.current_path_node]:
+            files.append((self.name_by_node[child], type_map[self.file_type[child]]))
+        return files
 
     def get_file_from_graph(self, file_info):
         """

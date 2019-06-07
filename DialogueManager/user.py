@@ -109,12 +109,12 @@ class UserHuman(object):
 
         with open(constants_file) as f:
             constants = json.load(f)
-            constants['agent']['load_weights_file_path'] = '../my_weights/m3.h5'
+            constants['agent']['load_weights_file_path'] = 'FileBrowserDM/my_weights/m.h5'
         compress = True
         train_batch = True
         use_encoder = False
         one_hot = True
-        self.dqn_agent = AgentFB(800, constants,train_batch, use_encoder, compress, one_hot)
+        self.dqn_agent = AgentFB(50, constants,train_batch, use_encoder, compress, one_hot)
         self.directory = directory
 
     def return_response(self,agent_action=None):
@@ -127,7 +127,7 @@ class UserHuman(object):
         Create_file_desire, file_name:file1; parent_directory:dir1; is_file:1
         request, slot:parent_directory
         Change_directory_desire, directory:dir1
-
+        request, slot:directory; file_name:dddd
         intents, informs keys and values, and request keys and values cannot contain / , :
 
         Returns:
@@ -166,11 +166,11 @@ class UserHuman(object):
 
 if __name__ == '__main__':
 
-    c = json.load(open('FileBrowserDM/constants.json', 'r'))
-    user_sim = UserSimulatorFB(c,Graph())
-    agent = UserAgent(user_sim)
-    agent.start_conversation()
-    # user = UserHuman()
-    # user.start_conversation()
+    # c = json.load(open('FileBrowserDM/constants.json', 'r'))
+    # user_sim = UserSimulatorFB(c,Graph())
+    # agent = UserAgent(user_sim)
+    # agent.start_conversation()
+    user = UserHuman()
+    user.start_conversation()
 
 

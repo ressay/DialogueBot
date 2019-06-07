@@ -225,7 +225,9 @@ class ActionTracker(object):
                     needs['file_node'] = node
                     actions.append(self.create_request_action(key, needs))
         if self.intent_tracker.all_required_slots_filled():
+            print('slot filled')
             actions += self.possible_actions[self.intent_tracker.current_intent_info['name']]()
+        print(self.intent_tracker.current_intent_info)
         return actions
 
     def possible_actions_open(self):
@@ -266,7 +268,14 @@ class ActionTracker(object):
     def possible_actions_search(self):
         candidates = self.current_action_info['nodes_info']['candidate_nodes']
         if candidates is None or len(candidates) == 0:
-            return []
+            if 'file_name' in self.intent_tracker.current_intent_info:
+                return [{
+                    'intent': 'inform',
+                    'file_name': self.intent_tracker.current_intent_info['file_name'],
+                    'paths': [],
+                    'action_node': fbrowser.U_inform,
+                    'file_node': fbrowser.U_inform
+                }]
         actions = [{'intent': 'inform', 'file_name': self.intent_tracker.current_intent_info['file_name'],
                     'paths': [self.state_tracker.get_path_with_real_root(node, False) for node in candidates],
                     'action_node': fbrowser.U_inform, 'file_node': fbrowser.U_inform}]

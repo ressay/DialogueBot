@@ -32,8 +32,7 @@ class UserSimulatorFB(UserSimulator):
     confirm = 'confirm'
     deny = 'deny'
 
-
-    def __init__(self, constants, ontology,rewards=None,probas=None):
+    def __init__(self, constants, ontology, rewards=None, probas=None):
         """
         The constructor for UserSimulator. Sets dialogue config variables.
 
@@ -42,7 +41,7 @@ class UserSimulatorFB(UserSimulator):
             ontology (rdflib.Graph): ontology graph
         """
         super().__init__(constants, ontology)
-        self.agent_tree_actions = ["Create_file", "Delete_file","Copy_file","Move_file","Rename_file"]
+        self.agent_tree_actions = ["Create_file", "Delete_file", "Copy_file", "Move_file", "Rename_file"]
         for a in self.agent_tree_actions:
             self.user_responses[a] = self._build_response
         self.user_responses['Change_directory'] = self._build_response
@@ -59,10 +58,9 @@ class UserSimulatorFB(UserSimulator):
         if probas is not None:
             self.probas = probas
 
-
     def generate_goal(self):
         goal_tree = self.state['current_file_tree'].copy()
-        self.max_round = goal_tree.random_modifications()*4
+        self.max_round = goal_tree.random_modifications() * 4
         self.goal = {'goal_tree': goal_tree, 'end_directory': goal_tree.get_random_directory().path(), 'sub_goal': []}
         # print("new goal:")
         # goal_tree.print_tree()
@@ -110,6 +108,7 @@ class UserSimulatorFB(UserSimulator):
         Returns:
             dict: Initial user response
         """
+        self.add_random_sub_goal()
         user_response = self.generate_tree_desire_intent()
         self.state['previous_intent'] = user_response
         return user_response
@@ -140,17 +139,17 @@ class UserSimulatorFB(UserSimulator):
             user_response = self._end_response()
         else:
             # try:
-                success = self.update_state(agent_action)
-                if success:
-                    done = True
-                    user_response = self._end_response()
-                else:
-                    agent_intent = agent_action['intent']
-                    assert agent_intent in self.user_responses, 'Not acceptable agent action'
-                    user_response = self.user_responses[agent_intent](agent_action)
-            # except Exception as e:
-            #     print('ERROR HAPPENED AND IGNORING IT: ', e)
-            #     return self._default_response(), -5, False, 0
+            success = self.update_state(agent_action)
+            if success:
+                done = True
+                user_response = self._end_response()
+            else:
+                agent_intent = agent_action['intent']
+                assert agent_intent in self.user_responses, 'Not acceptable agent action'
+                user_response = self.user_responses[agent_intent](agent_action)
+                # except Exception as e:
+                #     print('ERROR HAPPENED AND IGNORING IT: ', e)
+                #     return self._default_response(), -5, False, 0
         self.state['current_uAction'] = user_response
         reward = self.reward_function(agent_action, success)
         self.print_debug()
@@ -391,17 +390,53 @@ class UserSimulatorFB(UserSimulator):
                     self.goal['sub_goal'].remove(sub_goal)
         return reward
 
+    def add_random_sub_goal(self):
+        # probabilities of copy/move, search file
+        pCM = 0.1
+        pS = 0.05
+        pRF = 0.05
+        pOF = 0.05
+
+        if random.uniform(0, 1) <= pCM + pS + pOF + pRF:
+            if random.uniform(0, pCM + pS + pOF + pRF) <= pRF:
+                r = self.state['current_file_tree'].get_random_file()
+                if r is not None:
+                    f, m = r
+                    chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+                    random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
+                    self.add_rename_sub_goal(m['name'], random_name, m['tree_sim'].parent.name)
+                    self.max_round += 6
+            elif random.uniform(0, pCM + pS + pOF) <= pOF:
+                r = self.state['current_file_tree'].get_random_file()
+                if r is not None:
+                    f, m = r
+                    self.add_open_sub_goal(m['name'], m['tree_sim'].parent.name)
+                    self.max_round += 2
+            elif random.uniform(0, pCM + pS) <= pS:
+                r = self.state['current_file_tree'].get_random_file()
+                if r is not None:
+                    f, m = r
+                    self.add_search_sub_goal(m['name'])
+                    self.max_round += 2
+            else:
+                if random.uniform(0, 1) < 0.5:
+                    modif = self.state['current_file_tree'].random_copy_modif()
+                    if modif is not None and modif['origin'] != modif['dest']:
+                        self.add_copy_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
+                        self.max_round += 4
+                else:
+                    modif = self.state['current_file_tree'].random_move_modif()
+                    if modif is not None and modif['origin'] != modif['dest']:
+                        self.add_move_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
+                        self.max_round += 8
+
     def update_state(self, agent_action):
         """
         :param (dict) agent_action: action of the dialogue manager
         :return (int) : 1 if success reached, 0 else wise
         """
         p_act = self.state['previous_uAction']
-        # probabilities of copy/move, search file
-        pCM = 0.1
-        pS = 0.05
-        pRF = 0.05
-        pOF = 0.05
+
         intent = agent_action['intent']
         f_sim = self.state['current_file_tree']
         goal_sim = self.goal['goal_tree']
@@ -415,41 +450,9 @@ class UserSimulatorFB(UserSimulator):
         self.update_sub_goals(agent_action)
         if len(self.goal['sub_goal']) > 1:
             print("seems like it does surpass 1 :o :o")
-        if intent in self.agent_tree_actions:
-            # add subgoal
-            if random.uniform(0, 1) <= pCM + pS + pOF + pRF:
-                if random.uniform(0, pCM + pS + pOF + pRF) <= pRF:
-                    r = self.state['current_file_tree'].get_random_file()
-                    if r is not None:
-                        f, m = r
-                        chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
-                        random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
-                        self.add_rename_sub_goal(m['name'],random_name,m['tree_sim'].parent.name)
-                        self.max_round += 6
-                elif random.uniform(0, pCM + pS + pOF) <= pOF:
-                    r = self.state['current_file_tree'].get_random_file()
-                    if r is not None:
-                        f, m = r
-                        self.add_open_sub_goal(m['name'], m['tree_sim'].parent.name)
-                        self.max_round += 2
-                elif random.uniform(0, pCM + pS) <= pS:
-                    r = self.state['current_file_tree'].get_random_file()
-                    if r is not None:
-                        f, m = r
-                        self.add_search_sub_goal(m['name'])
-                        self.max_round += 2
-                else:
-                    if random.uniform(0, 1) < 0.5:
-                        modif = self.state['current_file_tree'].random_copy_modif()
-                        if modif is not None and modif['origin'] != modif['dest']:
-                            self.add_copy_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
-                            self.max_round += 4
-                    else:
-                        modif = self.state['current_file_tree'].random_move_modif()
-                        if modif is not None and modif['origin'] != modif['dest']:
-                            self.add_move_sub_goal(modif['origin'], modif['dest'], modif['file_name'])
-                            self.max_round += 8
 
+        if intent in self.agent_tree_actions:
+            self.add_random_sub_goal()
 
         found, total = f_sim.tree_similarity(goal_sim)
         self.state['previous_similarity'] = self.state['current_similarity']
@@ -479,8 +482,6 @@ class UserSimulatorFB(UserSimulator):
         file_parent
         desire
     """
-
-
 
     def debug_bitmask(self, bitmask):
         self.debug = bitmask
@@ -612,7 +613,7 @@ class UserSimulatorFB(UserSimulator):
         if asked_action['intent'] == 'Change_directory' and sub_goal['name'] == 'Change_directory' \
                 and asked_action['new_directory'] in sub_goal['dirs']:
             return {'intent': self.confirm}
-        if asked_action['intent'] in ('Move_file','Copy_file') and sub_goal['name'] == asked_action['intent']:
+        if asked_action['intent'] in ('Move_file', 'Copy_file') and sub_goal['name'] == asked_action['intent']:
             keys = ['origin', 'dest', 'file']
             asked_action['file'] = asked_action['file_name']
             response = {'intent': self.confirm}
@@ -627,6 +628,7 @@ class UserSimulatorFB(UserSimulator):
             return self.create_change_dir_desire(self.state['current_file_tree'].path())
         else:
             return self._build_response(agent_action)
+
     def _ask_response(self, agent_action):
         assert agent_action['intent'] == 'ask', 'intent is not "ask" in ask_response'
         asked_action = agent_action['action']
@@ -650,8 +652,6 @@ class UserSimulatorFB(UserSimulator):
         #             and asked_action['new_directory'] in sub_goal['dirs']:
         #         return {'intent': self.confirm}
         return {'intent': self.deny}
-
-
 
     def _req_response(self, agent_action):
         response = {'intent': self.u_inform}
@@ -680,9 +680,7 @@ class UserSimulatorFB(UserSimulator):
         return response
 
 
-
-
 if __name__ == '__main__':
-    chars = [chr(i) for i in range(ord('a'),ord('z')+1)]
-    random_name = ''.join([chars[random.randint(0, len(chars)-1)] for i in range(4)])
+    chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+    random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
     print(random_name)
