@@ -42,7 +42,7 @@ class FileTreeSimulator(object):
         #     parent_graph += self.graph
         #     self.graph = parent_graph
 
-    def generate_random_tree(self, max_width=3, max_height=2, proba_width=0.5, counts=None):
+    def generate_random_tree(self, max_width=3, max_height=2, proba_width=0.5, counts=None, max_size=12):
         """
         generate file tree to be created by the dialogue manager
         :param (list) counts: contains 2 integers, count of created files, and count of created directories
@@ -59,9 +59,14 @@ class FileTreeSimulator(object):
             counts = [1, 1]
         if not max_height:
             return []
+        if max_size <= 0:
+            return []
+        if max_width > max_size:
+            max_width = max_size
         tree = [(int(random.uniform(0, 2)), {'name': "", 'sub_tree': []})
                 for i in range(max_width)
                 if random.uniform(0, 1) < proba_width or not i]
+        max_size -= len(tree)
         for i, l in tree:
             if i:
                 name = 'file' + str(countf)
@@ -72,7 +77,8 @@ class FileTreeSimulator(object):
             l['name'] = name
             if not i:
                 counts[0], counts[1] = countf, countd
-                sub_tree = self.generate_random_tree(max_width, max_height - 1, proba_width, counts)
+                sub_tree = self.generate_random_tree(max_width, max_height - 1, proba_width, counts, max_size)
+                max_size -= len(sub_tree)
                 countf, countd = counts
                 l['sub_tree'] = sub_tree
         return tree
@@ -85,9 +91,10 @@ class FileTreeSimulator(object):
         r = random.randint(0, len(files)-1)
         return files[r]
 
-    def random_modifications(self):
+    def random_modifications(self, max_size=4):
 
-        todel = random.randint(0, int(self.r_size()/2))
+        todel = random.randint(0, min((int(self.r_size()/2), max_size)))
+        max_size -= todel
         for i in range(todel):
             file = self.get_random_file()
             if file is None:
@@ -96,7 +103,7 @@ class FileTreeSimulator(object):
             self.remove_file(m['name'],m['tree_sim'].path(True))
         rdir = self.get_random_directory()
         psize = rdir.r_size()
-        rdir.addAll_tree(rdir.generate_random_tree())
+        rdir.addAll_tree(rdir.generate_random_tree(max_size=max_size))
         newSize = rdir.r_size() - psize
         return newSize + todel
 
