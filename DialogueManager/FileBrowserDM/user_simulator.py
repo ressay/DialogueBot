@@ -603,6 +603,7 @@ class UserSimulatorFB(UserSimulator):
             for o, d in zip(origin, destination[:len(origin)]):
                 if o != d:
                     return origin[-2], paths(origin)[i::-1]
+                i += 1
 
             if random.uniform(0, 1) < 0.5:  # returns next directory
                 return destination[len(origin)], paths(destination)[len(origin):]

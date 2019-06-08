@@ -3,7 +3,7 @@ import sys
 from rdflib import Literal, BNode
 
 from DialogueManager.FileBrowserDM.errors import FileNameExistsError, RemoveCurrentDirError, MoveFileInsideItself, \
-    PuttingFileUnderRegularFile
+    PuttingFileUnderRegularFile, RenamingFolderInCurrentPath
 from DialogueManager.FileBrowserDM.file_tree_sim import FileTreeSimulator
 from DialogueManager.FileBrowserDM.intent_tracker import ActionTracker
 from DialogueManager.state_tracker import StateTracker
@@ -445,6 +445,9 @@ class StateTrackerFB(StateTracker):
 
     def rename_triplets_a(self, agent_action):
         triplets = []
+        node = agent_action['file_node']
+        if self.has_ancestor(self.current_path_node, node):
+            raise RenamingFolderInCurrentPath(self.name_by_node[node], self.get_path_with_real_root(node))
         triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.Rename_file))
         triplets.append((agent_action['file_node'], fbrowser.has_name, Literal(agent_action['new_name'])))
         return triplets

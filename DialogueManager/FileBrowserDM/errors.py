@@ -42,3 +42,11 @@ class PuttingFileUnderRegularFile(DialogueError):
         self.file_name = file_name
         self.parent_path = parent_path
         self.reward = -0.1
+
+
+class RenamingFolderInCurrentPath(DialogueError):
+    def __init__(self, file_name, path, *args) -> None:
+        super().__init__(*args)
+        self.file_name = file_name
+        self.path = path
+        self.reward = 2
