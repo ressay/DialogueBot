@@ -21,6 +21,18 @@ class Nlg_system(object):
                     "Can you give me the file's name please?",
                     "What is the name of the file?"
                 ],
+                'old_name': [
+                    "What's the file's name?",
+                    "Please, give me the file's name",
+                    "Can you give me the file's name please?",
+                    "What is the name of the file?"
+                ],
+                'new_name': [
+                    "What should I change the name to?",
+                    "Please, tell me what's <old_name>'s new name?",
+                    "Can you give me <old_name>'s new name?",
+                    "Please, what should I change <old_name> to?"
+                ],
                 'directory': [
                     "What's the directory's name?",
                     "Please give me the directory's name",
@@ -28,6 +40,13 @@ class Nlg_system(object):
                     "What is the name of the directory?"
                 ],
                 'parent_directory': [
+                    "What's <file_name>'s parent directory?",
+                    "Please give me <file_name>'s parent directory",
+                    "Can you give me the parent directory of <file_name> please?",
+                    "What is the directory of <file_name>?",
+                    "Where is <file_name> located?"
+                ],
+                'origin': [
                     "What's <file_name>'s parent directory?",
                     "Please give me <file_name>'s parent directory",
                     "Can you give me the parent directory of <file_name> please?",
@@ -88,8 +107,41 @@ class Nlg_system(object):
                 ],
                 'nopath': [
                     "Sorry I couldn't find <file_name>"
-                ]
+                ],
+                'error': {
+                    'file_name_exists': [
+
+                    ],
+                    'file_does_not_exist': [
+
+                    ],
+                    'remove_current_dir': [
+
+                    ],
+                    'move_file_inside_itself': [
+
+                    ],
+                    'putting_file_under_regfile': [
+
+                    ],
+                    'renaming_in_current_dir': [
+
+                    ]
+                }
             },
+            'Open_file': [
+                '<file_type> <file_name> has been opened!',
+                'I opened <file_type> <file_name>',
+                'I opened <file_name>',
+                'Here is <file_name>!'
+            ],
+            'Rename_file': [
+                "<old_name> has been changed to <new_name>!",
+                "I changed <old_name> to <new_name>",
+                "<old_name> is now <new_name>!",
+                "the file's name has been changed to <new_name>",
+                "I changed it to <new_name>"
+            ],
             'default': [
                 "Sorry, can you repeat, I did not understand",
                 "Hmmm, I failed to understand",
@@ -105,7 +157,9 @@ class Nlg_system(object):
             'file_type': [self.value_replacer],
             'path': [self.value_replacer],
             'paths': [self.paths_expression],
-            'special_file_name': [self.value_replacer]
+            'special_file_name': [self.value_replacer],
+            'old_name': [self.value_replacer],
+            'new_name': [self.value_replacer],
         }
         self.actions = {
             'request': [
@@ -179,7 +233,15 @@ class Nlg_system(object):
     def choose_random(self,tab):
         return tab[random.randint(0,len(tab)-1)]
 
+    def fix_slots(self, agent_action):
+        if 'file_name' not in agent_action and 'old_name' in agent_action:
+            agent_action['file_name'] = agent_action['old_name']
+
     def get_sentence(self, agent_action):
+        if agent_action['intent'] == 'inform' and 'error' in agent_action:
+            err = agent_action['error']
+            return err.turn_to_text()
+        self.fix_slots(agent_action)
         models = self.get_models(agent_action)
         # print(models)
         model = self.choose_random(models)

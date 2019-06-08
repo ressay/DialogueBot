@@ -75,7 +75,8 @@ class UserSimulatorFB(UserSimulator):
 
     def generate_goal(self):
         goal_tree = self.state['current_file_tree'].copy()
-        self.max_round = goal_tree.random_modifications() * 4
+        # as 30% of actions contain errors of infuser, we multiply by 1.3
+        self.max_round = int(goal_tree.random_modifications() * 4 * 1.3)
         self.goal = {'goal_tree': goal_tree, 'end_directory': goal_tree.get_random_directory().path(), 'sub_goal': []}
         # print("new goal:")
         # goal_tree.print_tree()

@@ -666,7 +666,9 @@ class StateTrackerFB(StateTracker):
 
     def remove_file_existence(self, file_node, from_all=False, rm_from_parent=True):
         if self.has_ancestor(self.current_path_node, file_node):
-            raise RemoveCurrentDirError(self.name_by_node[file_node], file_node != self.current_path_node)
+            raise RemoveCurrentDirError(self.name_by_node[file_node],
+                                        self.get_path_with_real_root(self.current_path_node),
+                                        file_node != self.current_path_node)
         if file_node in self.file_exists:
             self.file_exists.remove(file_node)
         if file_node in self.children:
