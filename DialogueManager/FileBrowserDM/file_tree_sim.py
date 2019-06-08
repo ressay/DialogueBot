@@ -352,6 +352,9 @@ class FileTreeSimulator(object):
             tree_sim = m['tree_sim']
         else:
             tree_sim = self
+            if old_name == self.name:
+                self.name = new_name
+                return
         f, m = tree_sim.get_file_by_name(old_name)
         self.remove_file(old_name, path)
         f, m2 = self.add_file(new_name, f, path)
@@ -410,7 +413,10 @@ class FileTreeSimulator(object):
         :param (str) name: name of file
         :return (integer,list): as described in tree content
         """
-        return self.tree_map[name]
+        if name in self.tree_map:
+            return self.tree_map[name]
+        else:
+            return None
 
     def contains_file(self, name):
         return name in self.tree_map
