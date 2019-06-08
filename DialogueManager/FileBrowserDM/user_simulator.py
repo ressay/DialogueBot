@@ -490,8 +490,6 @@ class UserSimulatorFB(UserSimulator):
         :param (dict) agent_action: action of the dialogue manager
         :return (int) : 1 if success reached, 0 else wise
         """
-        p_act = self.state['previous_uAction']
-
         intent = agent_action['intent']
         f_sim = self.state['current_file_tree']
         goal_sim = self.goal['goal_tree']
@@ -506,7 +504,7 @@ class UserSimulatorFB(UserSimulator):
         if len(self.goal['sub_goal']) > 1:
             print("seems like it does surpass 1 :o :o")
 
-        if intent in self.agent_tree_actions:
+        if intent in self.agent_tree_actions and not self.sub_goal_exists():
             self.add_random_sub_goal()
 
         found, total = f_sim.tree_similarity(goal_sim)
@@ -664,9 +662,9 @@ class UserSimulatorFB(UserSimulator):
 
     def _inform_response(self, agent_action):
         if 'error' in agent_action:
-            return self.create_change_dir_desire(self.state['current_file_tree'].path())
-        else:
-            return self._build_response(agent_action)
+            if random.random() < 0.4:
+                return self.create_change_dir_desire(self.state['current_file_tree'].path())
+        return self._build_response(agent_action)
 
     def _ask_response(self, agent_action):
         assert agent_action['intent'] == 'ask', 'intent is not "ask" in ask_response'

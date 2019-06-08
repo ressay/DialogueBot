@@ -517,9 +517,6 @@ class StateTrackerFB(StateTracker):
             dest_path = self.get_path_with_real_root(dest)
             raise MoveFileInsideItself(name, path, dest_path)
 
-        if desire == fbrowser.Move_file:
-            self.remove_file_existence(node, True)
-
         triplets.append((newNode, onto.rdf_type, t))
         triplets.append((newNode, fbrowser.has_name, Literal(name)))
         triplets.append((dest, fbrowser.contains_file, newNode))
@@ -533,6 +530,9 @@ class StateTrackerFB(StateTracker):
             #       ' paths: ', self.get_path_of_file_node(f), ' and ', self.get_path_of_file_node(c))
             raise FileNameExistsError(self.get_path_of_file_node(c), self.name_by_node[c],
                                       self.file_type[c])
+
+        if desire == fbrowser.Move_file:
+            self.remove_file_existence(node, True)
 
         return []
 
