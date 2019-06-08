@@ -2,7 +2,8 @@ import rdflib
 import sys
 from rdflib import Literal, BNode
 
-from DialogueManager.FileBrowserDM.errors import FileNameExistsError, RemoveCurrentDirError, MoveFileInsideItself
+from DialogueManager.FileBrowserDM.errors import FileNameExistsError, RemoveCurrentDirError, MoveFileInsideItself, \
+    PuttingFileUnderRegularFile
 from DialogueManager.FileBrowserDM.file_tree_sim import FileTreeSimulator
 from DialogueManager.FileBrowserDM.intent_tracker import ActionTracker
 from DialogueManager.state_tracker import StateTracker
@@ -727,7 +728,7 @@ class StateTrackerFB(StateTracker):
             return self.name_by_node[self.root]
         assert node in self.parent, "PATH FROM NODE ERROR: node has no parent directory node: " + str(node) + \
                                     ' name: ' + str(self.name_by_node[node])
-        # TODO fix error that is happening here
+        # # TODO fix error that is happening here
         assert self.file_type[self.parent[node]] == fbrowser.Directory, 'TYPE OF PARENT IS NOT DIRECTORY BUT: ' + \
                                                                         str(self.file_type[self.parent[node]]) + \
                                                                         ' file name is ' + \
@@ -770,6 +771,12 @@ class StateTrackerFB(StateTracker):
         if self.has_ancestor(parent, s):
             # print('ancestor problem!!')
             return False
+        if self.file_type[parent] != fbrowser.Directory:
+            name = None
+            if s in self.name_by_node:
+                name = self.name_by_node[s]
+            raise PuttingFileUnderRegularFile(name, self.get_path_with_real_root(parent))
+
         if s in self.parent:
             assert self.parent[s] in self.children, str(s) + " has parent " + str(self.parent[s]) + \
                                                     " but is not in parent's children"

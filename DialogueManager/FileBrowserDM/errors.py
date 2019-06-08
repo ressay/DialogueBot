@@ -34,3 +34,11 @@ class MoveFileInsideItself(DialogueError):
         self.path = path
         self.dest_path = dest_path
         self.reward = -0.1
+
+
+class PuttingFileUnderRegularFile(DialogueError):
+    def __init__(self, file_name, parent_path, *args) -> None:
+        super().__init__(*args)
+        self.file_name = file_name
+        self.parent_path = parent_path
+        self.reward = -0.1
