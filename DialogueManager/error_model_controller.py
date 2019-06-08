@@ -1,26 +1,29 @@
 import random
-from DialogueManager.dialogue_config import usersim_intents
+from DialogueManager.FileBrowserDM.user_simulator import UserSimulatorFB
+from DialogueManager.FileBrowserDM.intent_tracker import IntentTracker
 
 
 class ErrorModelController:
     """Adds error to the user action."""
 
-    def __init__(self, db_dict, constants):
+    def __init__(self, constants):
         """
         The constructor for ErrorModelController.
 
         Saves items in constants, etc.
 
         Parameters:
-            db_dict (dict): The database dict with format dict(string: list) where each key is the slot name and
-                            the list is of possible values
             constants (dict): Loaded constants in dict
         """
 
         self.slot_error_prob = constants['emc']['slot_error_prob']
         self.slot_error_mode = constants['emc']['slot_error_mode']  # [0, 3]
         self.intent_error_prob = constants['emc']['intent_error_prob']
-        self.intents = usersim_intents
+        self.intents = UserSimulatorFB.usersim_intents
+        requirements = IntentTracker.intents_requirements
+        self.intent_slots_map = dict((key, [k for k in requirements[key]])
+                                     for key in requirements)
+        self.untouchable_keys = ['is_file', 'slot']
 
     def infuse_error(self, frame):
         """
@@ -34,58 +37,64 @@ class ErrorModelController:
                           'speaker': 'User')
         """
 
-        informs_dict = frame['inform_slots']
-        for key in list(frame['inform_slots'].keys()):
-            assert key in self.movie_dict
+        keys = [key for key in frame if key != 'intent' and key not in self.untouchable_keys]
+        for key in keys:
             if random.random() < self.slot_error_prob:
-                if self.slot_error_mode == 0:  # replace the slot_value only
-                    self._slot_value_noise(key, informs_dict)
-                elif self.slot_error_mode == 1:  # replace slot and its values
-                    self._slot_noise(key, informs_dict)
-                elif self.slot_error_mode == 2:  # delete the slot
-                    self._slot_remove(key, informs_dict)
-                else:  # Combine all three
-                    rand_choice = random.random()
-                    if rand_choice <= 0.33:
-                        self._slot_value_noise(key, informs_dict)
-                    elif rand_choice > 0.33 and rand_choice <= 0.66:
-                        self._slot_noise(key, informs_dict)
-                    else:
-                        self._slot_remove(key, informs_dict)
+                # if self.slot_error_mode == 0:  # replace the slot_value only
+                #     self._slot_value_noise(key, frame)
+                # elif self.slot_error_mode == 1:  # replace slot and its values
+                #     self._slot_noise(key, frame)
+                # elif self.slot_error_mode == 2:  # delete the slot
+                #     self._slot_remove(key, frame)
+                # else:  # Combine all three
+                rand_choice = random.random()
+                if rand_choice <= 0.33:
+                    self._slot_value_noise(key, frame)
+                elif 0.33 < rand_choice <= 0.66:
+                    self._slot_noise(key, frame)
+                else:
+                    self._slot_remove(key, frame)
         if random.random() < self.intent_error_prob:  # add noise for intent level
             frame['intent'] = random.choice(self.intents)
 
-    def _slot_value_noise(self, key, informs_dict):
+    def _slot_value_noise(self, key, frame):
         """
         Selects a new value for the slot given a key and the dict to change.
 
         Parameters:
             key (string)
-            informs_dict (dict)
+            frame (dict)
         """
+        chars = [chr(i) for i in range(ord('a'), ord('z') + 1)]
+        random_name = ''.join([chars[random.randint(0, len(chars) - 1)] for i in range(4)])
+        frame[key] = random_name
 
-        informs_dict[key] = random.choice(self.movie_dict[key])
-
-    def _slot_noise(self, key, informs_dict):
+    def _slot_noise(self, key, frame):
         """
         Replaces current slot given a key in the informs dict with a new slot and selects a random value for this new slot.
 
         Parameters:
             key (string)
-            informs_dict (dict)
+            frame (dict)
         """
+        value = frame[key]
+        frame.pop(key)
+        intent = frame['intent']
+        if intent in self.intent_slots_map:
+            random_slot = random.choice(self.intent_slots_map[intent])
+        else:
+            r_key = random.choice(list(self.intent_slots_map.keys()))
+            random_slot = random.choice(self.intent_slots_map[r_key])
+        if random_slot not in self.untouchable_keys:
+            frame[random_slot] = value
 
-        informs_dict.pop(key)
-        random_slot = random.choice(list(self.movie_dict.keys()))
-        informs_dict[random_slot] = random.choice(self.movie_dict[random_slot])
-
-    def _slot_remove(self, key, informs_dict):
+    def _slot_remove(self, key, frame):
         """
         Removes the slot given the key from the informs dict.
 
         Parameters:
             key (string)
-            informs_dict (dict)
+            frame (dict)
         """
 
-        informs_dict.pop(key)
+        frame.pop(key)

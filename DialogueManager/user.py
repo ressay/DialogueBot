@@ -42,7 +42,7 @@ class UserAgent:
         self.state_tracker.update_state_user_action(user_action,False)
         print("possible actions:")
         nodes,actions = self.state_tracker.get_possible_actions()
-        actions = actions[::2]
+        # actions = actions[::2]
         for i, a in enumerate(actions):
             print(i+1,': '),
             print(a)
@@ -109,12 +109,12 @@ class UserHuman(object):
 
         with open(constants_file) as f:
             constants = json.load(f)
-            constants['agent']['load_weights_file_path'] = 'FileBrowserDM/my_weights/m.h5'
+            constants['agent']['load_weights_file_path'] = 'FileBrowserDM/my_weights/m2.h5'
         compress = True
         train_batch = True
         use_encoder = False
         one_hot = True
-        self.dqn_agent = AgentFB(50, constants,train_batch, use_encoder, compress, one_hot)
+        self.dqn_agent = AgentFB(100, constants,train_batch, use_encoder, compress, one_hot)
         self.directory = directory
 
     def return_response(self,agent_action=None):
@@ -166,11 +166,11 @@ class UserHuman(object):
 
 if __name__ == '__main__':
 
-    # c = json.load(open('FileBrowserDM/constants.json', 'r'))
-    # user_sim = UserSimulatorFB(c,Graph())
-    # agent = UserAgent(user_sim)
-    # agent.start_conversation()
-    user = UserHuman()
-    user.start_conversation()
+    c = json.load(open('FileBrowserDM/constants.json', 'r'))
+    user_sim = UserSimulatorFB(c,Graph())
+    agent = UserAgent(user_sim)
+    agent.start_conversation()
+    # user = UserHuman()
+    # user.start_conversation()
 
 

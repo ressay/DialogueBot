@@ -167,6 +167,10 @@ class Agent(object):
         self.reinit_state_tracker(data)
         self.update_state_user_action(user_action)
 
+    def reset_data(self, data):
+        self.graph_encoding = np.zeros(self.state_size)
+        self.reinit_state_tracker(data)
+
     def _get_state_compressed(self):
         return [self.state_tracker.all_episode_triplets.copy(), self.current_actions_vector.copy()]
 
@@ -197,6 +201,10 @@ class Agent(object):
 
         self.state_tracker.update_state_user_action(user_action, update_encoding=self.use_graph_encoder)
         self.current_actions_vector, self.current_possible_actions = self.state_tracker.get_possible_actions()
+
+    def step_user_action(self, user_action):
+        self.update_state_user_action(user_action)
+        return self.step()
 
     def step(self):
         """

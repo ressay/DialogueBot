@@ -12,6 +12,7 @@ from DialogueManager.FileBrowserDM.user_simulator import UserSimulatorFB as usim
 
 
 class StateTrackerFB(StateTracker):
+    default_action = {'intent': 'default', 'action_node': fbrowser.a_acted, 'file_node': fbrowser.a_acted}
     def __init__(self, size, ontology, one_hot=True, lazy_encoding=True, data=None, root_path='~') -> None:
         """
         StateTracker constructor
@@ -32,9 +33,9 @@ class StateTrackerFB(StateTracker):
             usim.u_inform: self.inform_triplets_u,
             usim.confirm: self.ask_triplets_u,
             usim.deny: self.ask_triplets_u,
-            usim.default: self.default,
-            usim.end: self.default,
-            'unknown': self.default
+            usim.default: self.default_u,
+            usim.end: self.default_u,
+            'unknown': self.default_u
         }
         self.inform_slots = {
             'file_name': fbrowser.File_name,
@@ -73,7 +74,8 @@ class StateTrackerFB(StateTracker):
             "Open_file": self.open_triplets_a,
             "inform": self.inform_triplets_a,
             "ask": self.ask_triplets_a,
-            "request": self.request_triplets_a
+            "request": self.request_triplets_a,
+            'default': self.default_a
         }
         self.action_tracker = ActionTracker(self)
 
@@ -99,73 +101,13 @@ class StateTrackerFB(StateTracker):
 
     def get_possible_actions(self, encode_actions=True):
         actions = []
-        is_file_map = {fbrowser.Directory: 0, fbrowser.RegFile: 1, fbrowser.File: -1}
-        file_map = {fbrowser.Directory: 'directory', fbrowser.RegFile: 'file', fbrowser.File: 'file'}
-        actions.append({'intent': 'Change_directory',
-                        'new_directory': self.root_path,
-                        'file_node': self.root, 'action_node': fbrowser.Change_directory})
 
         def ask_action(act):
             return {'intent': 'ask', 'action': act, 'ask_nodes': act['ask_nodes']}
 
-        ignore_change_dir = [usim.Delete_file_desire, usim.Create_file_desire, usim.Copy_file_desire,
-                             usim.Move_file_desire]
-        ignore_delete = [usim.Change_directory_desire, usim.Create_file_desire, usim.Copy_file_desire,
-                         usim.Move_file_desire]
-        ignore_create = [usim.Delete_file_desire, usim.Change_directory_desire, usim.Copy_file_desire,
-                         usim.Move_file_desire]
-        ignore_copy_move = [usim.Delete_file_desire, usim.Change_directory_desire, usim.Create_file_desire]
-
-        u_intent = self.last_user_action['intent']
-        if len(self.special_nodes) > 0 and u_intent not in ignore_copy_move:
-            for node in self.special_nodes:
-                desire, dests = self.special_nodes[node]
-                intent = 'Copy_file' if desire == fbrowser.Copy_file else 'Move_file'
-                if len(dests) == 0:
-                    actions.append({'intent': 'request', 'file_name': self.name_by_node[node],
-                                    'slot': 'dest', 'action_node': fbrowser.A_request, 'file_node': node})
-                else:
-                    for dest in dests:
-                        if node != self.root and dest != self.parent[node] and node in self.file_exists:
-                            actions.append({'intent': intent, 'file_name': self.name_by_node[node],
-                                            'origin': self.get_path_with_real_root(node, False),
-                                            'dest': self.get_path_with_real_root(dest), 'action_node': dest,
-                                            'file_node': node, 'dest_node': dest})
-            if len(self.special_nodes) > 1:
-                actions.append({'intent': 'request', 'file_name': self.name_by_node[node],
-                                'slot': 'parent_directory', 'action_node': fbrowser.A_request, 'file_node': desire})
-        for key in self.parent:
-            file_type = file_map[self.file_type[key]]
-            if key in self.name_by_node:
-                value = self.name_by_node[key]
-                is_file = is_file_map[self.file_type[key]]
-                if key in self.file_exists:
-                    if u_intent not in ignore_delete and not self.has_ancestor(self.current_path_node, key):
-                        actions.append({'intent': 'Delete_file', 'file_name': value, 'file_type': file_type,
-                                        'path': self.get_path_with_real_root(key, False),
-                                        'action_node': fbrowser.Delete_file, 'file_node': key})
-
-                    if self.file_type[key] == fbrowser.Directory and u_intent not in ignore_change_dir \
-                            and key != self.current_path_node:
-                        actions.append({'intent': 'Change_directory',
-                                        'new_directory': self.get_path_with_real_root(key),
-                                        'file_node': key, 'action_node': fbrowser.Change_directory})
-                else:
-                    if u_intent not in ignore_create:
-                        actions.append({'intent': 'Create_file', 'file_name': value, 'is_file': is_file,
-                                        'path': self.get_path_with_real_root(key, False), 'file_node': key,
-                                        'action_node': fbrowser.Create_file, 'file_type': file_type})
-                    actions.append({'intent': 'request', 'slot': 'parent_directory',
-                                    'file_name': value, 'file_node': key, 'action_node': fbrowser.A_request})
-            else:
-                actions.append({'intent': 'request', 'slot': 'file_name',
-                                'file_node': key, 'action_node': fbrowser.A_request})
-        actions += self.special_actions
-        self.special_actions = []
         if self.action_tracker.has_intent():
             actions = self.action_tracker.get_possible_actions()
-        else:
-            actions = [{'intent': 'default'}]
+        actions.append(self.default_action)
         for a in actions:
             a['ask_nodes'] = (a['action_node'], a['file_node'])
         action_nodes = [(m['action_node'], m['file_node']) for m in actions]
@@ -227,7 +169,11 @@ class StateTrackerFB(StateTracker):
         self.last_user_action = user_action
         return self.user_actions_map[user_action['intent']](user_action)
 
-    def default(self, user_action):
+    def default_u(self, user_action):
+        self.action_tracker.clear_current_action()
+        return []
+
+    def default_a(self, agent_action):
         return []
 
     # TODO OPTIONAL ADD_USER_ACTION NODES
@@ -357,6 +303,8 @@ class StateTrackerFB(StateTracker):
     def ask_triplets_u(self, user_action):
         triplets = []
         prev_aAction = self.state_map['last_agent_action']
+        if prev_aAction is None:
+            return []
         if prev_aAction['intent'] != 'ask':
             print('confirming not "ask" intent', file=sys.stderr)
             return triplets
@@ -896,8 +844,9 @@ class StateTrackerFB(StateTracker):
             fbrowser.RegFile: 'file',
             fbrowser.File: 'file'
         }
-        for child in self.children[self.current_path_node]:
-            files.append((self.name_by_node[child], type_map[self.file_type[child]]))
+        if self.current_path_node in self.children:
+            for child in self.children[self.current_path_node]:
+                files.append((self.name_by_node[child], type_map[self.file_type[child]]))
         return files
 
     def get_file_from_graph(self, file_info):

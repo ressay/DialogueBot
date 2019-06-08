@@ -79,9 +79,17 @@ class Nlg_system(object):
                 "We're in <new_directory> now!",
                 "I moved to path <new_directory>"
             ],
-            'inform': [
-                "file path is <path>"
-            ],
+            'inform': {
+                'paths': [
+                    'I did find it under several paths: <paths>'
+                ],
+                'path': [
+                    'I found it under <path>'
+                ],
+                'nopath': [
+                    "Sorry I couldn't find <file_name>"
+                ]
+            },
             'default': [
                 "Sorry, can you repeat, I did not understand",
                 "Hmmm, I failed to understand",
@@ -89,14 +97,15 @@ class Nlg_system(object):
                 "Could you please repeat? I did not understand"
             ]
         }
-        self.expressions = {
-            'file_name': ['<value>'],
-            'new_directory': ['<value>'],
-            'dest': ['<value>'],
-            'origin': ['<value>'],
-            'file_type': ['<value>'],
-            'path': ['<value>'],
-            'special_file_name': ['<value>']
+        self.expression_gen = {
+            'file_name': [self.value_replacer],
+            'new_directory': [self.value_replacer],
+            'dest': [self.value_replacer],
+            'origin': [self.value_replacer],
+            'file_type': [self.value_replacer],
+            'path': [self.value_replacer],
+            'paths': [self.paths_expression],
+            'special_file_name': [self.value_replacer]
         }
         self.actions = {
             'request': [
@@ -123,6 +132,15 @@ class Nlg_system(object):
             ]
         }
 
+    def value_replacer(self, value):
+        return value
+
+    def paths_expression(self, value):
+        result = value[0]
+        for val in value[1:]:
+            result += " and " + val
+        return result
+
     def action_expression(self, action):
         models = self.actions[action['intent']]
         result = []
@@ -137,8 +155,8 @@ class Nlg_system(object):
     def get_expressions(self, key, value):
         if key == 'action':
             return self.action_expression(value)
-        tab = self.expressions[key]
-        return [sentence.replace('<value>', value) for sentence in tab]
+        tab = self.expression_gen[key]
+        return [func(value) for func in tab]
 
     def get_models(self, agent_action):
         intent = agent_action['intent']
@@ -146,6 +164,16 @@ class Nlg_system(object):
             if 'special' in agent_action:
                 return self.models[intent][agent_action['special']]
             return self.models[intent][agent_action['slot']]
+        if intent == 'inform':
+            if 'paths' in agent_action:
+                paths = agent_action['paths']
+                if len(paths) > 1:
+                    return self.models[intent]['paths']
+                if len(paths) == 1:
+                    agent_action['path'] = paths[0]
+                    return self.models[intent]['path']
+                return self.models[intent]['nopath']
+
         return self.models[intent]
 
     def choose_random(self,tab):
@@ -153,6 +181,7 @@ class Nlg_system(object):
 
     def get_sentence(self, agent_action):
         models = self.get_models(agent_action)
+        # print(models)
         model = self.choose_random(models)
         for param in re.findall('<(.+?)>',model):
             expressions = self.get_expressions(param,agent_action[param])
@@ -163,9 +192,8 @@ class Nlg_system(object):
 
 if __name__ == '__main__':
     nlg = Nlg_system()
-    print(nlg.get_sentence({'intent': 'request', 'slot': 'parent_directory',
-                            'file_name': 'khobz file',
-                            'special': 'multiple_file_found'}))
+    print(nlg.get_sentence({'intent': 'inform', 'file_name': 'khobzish',
+                            'paths': ['home/bla','home/blo']}))
     print(nlg.get_sentence({'intent': 'Change_directory',
                             'new_directory': 'esta/lavida/baby'}))
     print(nlg.get_sentence({'intent': 'ask', 'action': {'intent': 'Create_file', 'file_name': 'khobz',

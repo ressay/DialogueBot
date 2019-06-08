@@ -50,12 +50,12 @@ class IntentTracker(object):
         UserSimulatorFB.Copy_file_desire: copy_file_requirements
     }
     slot_converter = {
-        'directory': ['file_name'],
-        'old_name': ['old_name', 'file_name'],
-        'new_name': ['new_name', 'file_name'],
-        'parent_directory': ['parent_directory', 'file_name'],
-        'dest': ['dest', 'file_name', 'parent_directory'],
-        'origin': ['origin', 'file_name', 'parent_directory']
+        'directory': ['directory', 'new_directory', 'file_name'],
+        'old_name': ['old_name', 'file_name', 'directory'],
+        'new_name': ['new_name', 'file_name', 'directory'],
+        'parent_directory': ['parent_directory', 'file_name', 'directory'],
+        'dest': ['dest', 'file_name', 'parent_directory', 'directory'],
+        'origin': ['origin', 'file_name', 'parent_directory', 'directory']
     }
 
     def __init__(self) -> None:
@@ -75,6 +75,10 @@ class IntentTracker(object):
         for key in self.current_intent_requirements:
             if key in user_action:
                 self.current_intent_info[key] = user_action[key]
+
+        # for key in user_action:
+        #     if key in self.current_intent_requirements and key not in self.current_intent_info:
+        #
 
     def add_inform_intent(self, user_action, prev_user_action):
         if prev_user_action['intent'] == 'request':
@@ -342,11 +346,11 @@ class ActionTracker(object):
     def possible_actions_copy(self):
         candidates = self.current_action_info['nodes_info']['candidate_nodes']
         if candidates is None or len(candidates) == 0:
-            print('out candidates')
+            # print('out candidates')
             return []
         dest_nodes = self.current_action_info['nodes_info']['dest_nodes']
         if dest_nodes is None or len(dest_nodes) == 0:
-            print('out dest')
+            # print('out dest')
             return []
 
         actions = []

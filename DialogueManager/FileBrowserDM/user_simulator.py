@@ -32,6 +32,20 @@ class UserSimulatorFB(UserSimulator):
     confirm = 'confirm'
     deny = 'deny'
 
+    usersim_intents = [
+        Change_directory_desire,
+        Delete_file_desire,
+        Create_file_desire,
+        Copy_file_desire,
+        Move_file_desire,
+        Open_file_desire,
+        Rename_file_desire,
+        u_inform,
+        u_request,
+        confirm,
+        deny
+    ]
+
     def __init__(self, constants, ontology, rewards=None, probas=None):
         """
         The constructor for UserSimulator. Sets dialogue config variables.
@@ -49,6 +63,7 @@ class UserSimulatorFB(UserSimulator):
         self.user_responses['inform'] = self._inform_response
         self.user_responses['ask'] = self._ask_response
         self.user_responses['request'] = self._req_response
+        self.user_responses['default'] = self._build_response
         self.debug = 0
         self.subgoal_reward = None
         self.rewards = {}
@@ -187,6 +202,11 @@ class UserSimulatorFB(UserSimulator):
             if 'confirm' in self.rewards:
                 return self.rewards['confirm']
             return 0
+        if self.state['current_uAction']['intent'] == self.deny:
+            if 'deny' in self.rewards:
+                return self.rewards['deny']
+            return -0.5
+
         if 'other' in self.rewards:
             return self.rewards['other']
         return -1
@@ -268,11 +288,44 @@ class UserSimulatorFB(UserSimulator):
                             break
                     if agent_action['file'] != sub_goal['file']:
                         self.subgoal_reward = -3
-                    # print('got here and reward is: ', self.subgoal_reward)
-                    # print(agent_action)
-                    # print(sub_goal)
                     self.goal['sub_goal'].remove(sub_goal)
                     break
+
+    def _ask_sub_goal(self, agent_action):
+        if not self.sub_goal_exists():
+            return None
+        asked_action = agent_action['action']
+        sub_goal = self.next_sub_goal()
+        if asked_action['intent'] == 'Change_directory' and sub_goal['name'] == 'Change_directory' \
+                and asked_action['new_directory'] in sub_goal['dirs']:
+            return {'intent': self.confirm}
+        if asked_action['intent'] in ('Move_file', 'Copy_file') and sub_goal['name'] == asked_action['intent']:
+            keys = ['origin', 'dest']
+            asked_action['file'] = asked_action['file_name']
+            response = {'intent': self.confirm}
+            for key in keys:
+                if not FileTreeSimulator.equal_paths(sub_goal[key], asked_action[key]):
+                    return {'intent': self.deny}
+            if asked_action['file'] != sub_goal['file']:
+                return {'intent': self.deny}
+            return response
+        if asked_action['intent'] == 'Open_file' and sub_goal['name'] == asked_action['intent']:
+            p_dir = FileTreeSimulator.last_dir_in_path(asked_action['path'])
+            if p_dir == sub_goal['parent_directory'] and asked_action['file_name'] == sub_goal['file']:
+                return {'intent': self.confirm}
+            else:
+                return {'intent': self.deny}
+        if sub_goal['name'] == 'Rename_file' and asked_action['intent'] == sub_goal['name']:
+            p_dir = FileTreeSimulator.last_dir_in_path(asked_action['path'])
+            asked_action['parent_directory'] = p_dir
+            keys = ['old_name', 'new_name', 'parent_directory']
+            response = {'intent': self.confirm}
+            for key in keys:
+                if asked_action[key] != sub_goal[key]:
+                    return {'intent': self.deny}
+            return response
+
+        return None
 
     def sub_goal_exists(self):
         return len(self.goal['sub_goal']) > 0
@@ -605,23 +658,7 @@ class UserSimulatorFB(UserSimulator):
         response = self.generate_tree_desire_intent()
         return response
 
-    def _ask_sub_goal(self, agent_action):
-        if not self.sub_goal_exists():
-            return None
-        asked_action = agent_action['action']
-        sub_goal = self.next_sub_goal()
-        if asked_action['intent'] == 'Change_directory' and sub_goal['name'] == 'Change_directory' \
-                and asked_action['new_directory'] in sub_goal['dirs']:
-            return {'intent': self.confirm}
-        if asked_action['intent'] in ('Move_file', 'Copy_file') and sub_goal['name'] == asked_action['intent']:
-            keys = ['origin', 'dest', 'file']
-            asked_action['file'] = asked_action['file_name']
-            response = {'intent': self.confirm}
-            for key in keys:
-                if sub_goal[key] != asked_action[key]:
-                    return {'intent': self.deny}
-            return response
-        return None
+
 
     def _inform_response(self, agent_action):
         if 'error' in agent_action:
