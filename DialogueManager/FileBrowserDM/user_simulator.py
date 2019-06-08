@@ -175,6 +175,8 @@ class UserSimulatorFB(UserSimulator):
             if 'success' in self.rewards:
                 return self.rewards['success']
             return 2
+        if 'required_reward' in agent_action:
+            return agent_action['required_reward']
         # if self.sub_goal_exists():  # if there are pending sub_goals
         #     reward = self.get_sub_goal_reward(self.goal['sub_goal'][0])
         #     if reward:

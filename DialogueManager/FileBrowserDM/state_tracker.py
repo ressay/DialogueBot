@@ -2,7 +2,7 @@ import rdflib
 import sys
 from rdflib import Literal, BNode
 
-from DialogueManager.FileBrowserDM.errors import FileNameExistsError, RemoveCurrentDirError
+from DialogueManager.FileBrowserDM.errors import FileNameExistsError, RemoveCurrentDirError, MoveFileInsideItself
 from DialogueManager.FileBrowserDM.file_tree_sim import FileTreeSimulator
 from DialogueManager.FileBrowserDM.intent_tracker import ActionTracker
 from DialogueManager.state_tracker import StateTracker
@@ -13,6 +13,7 @@ from DialogueManager.FileBrowserDM.user_simulator import UserSimulatorFB as usim
 
 class StateTrackerFB(StateTracker):
     default_action = {'intent': 'default', 'action_node': fbrowser.a_acted, 'file_node': fbrowser.a_acted}
+
     def __init__(self, size, ontology, one_hot=True, lazy_encoding=True, data=None, root_path='~') -> None:
         """
         StateTracker constructor
@@ -308,7 +309,7 @@ class StateTrackerFB(StateTracker):
         if prev_aAction is None:
             return []
         if prev_aAction['intent'] != 'ask':
-            print('confirming not "ask" intent', file=sys.stderr)
+            # print('confirming not "ask" intent', file=sys.stderr)
             return triplets
         node = prev_aAction['action_node']
         if user_action['intent'] == 'confirm':
@@ -444,7 +445,7 @@ class StateTrackerFB(StateTracker):
     def rename_triplets_a(self, agent_action):
         triplets = []
         triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.Rename_file))
-        triplets.append((agent_action['file_node'],fbrowser.has_name,Literal(agent_action['new_name'])))
+        triplets.append((agent_action['file_node'], fbrowser.has_name, Literal(agent_action['new_name'])))
         return triplets
 
     def request_triplets_a(self, agent_action):
@@ -478,12 +479,11 @@ class StateTrackerFB(StateTracker):
         result = self.add_file_existence(file_node)
         if result is not None:
             f, c = result
-            self.remove_file_existence(file_node,True)
-            # TODO raise this error
+            self.remove_file_existence(file_node, True)
             # print('file exists: ',f,' and ',c,' names: ',self.name_by_node[f], ' and ', self.name_by_node[c],
             #       ' paths: ', self.get_path_of_file_node(f), ' and ', self.get_path_of_file_node(c))
-            # raise FileNameExistsError(self.get_path_of_file_node(f), self.name_by_node[f],
-            #                           self.file_type[f], self.file_type[c])
+            raise FileNameExistsError(self.get_path_of_file_node(c), self.name_by_node[c],
+                                      self.file_type[c])
         self.remove_special_candidate(agent_action)
         return triplets
 
@@ -512,6 +512,11 @@ class StateTrackerFB(StateTracker):
         # self.set_file_type(newNode, t)
         dest = agent_action['dest_node']
         name = self.name_by_node[node]
+        if self.has_ancestor(dest, node):
+            path = self.get_path_with_real_root(node, False)
+            dest_path = self.get_path_with_real_root(dest)
+            raise MoveFileInsideItself(name, path, dest_path)
+
         if desire == fbrowser.Move_file:
             self.remove_file_existence(node, True)
 
@@ -523,12 +528,11 @@ class StateTrackerFB(StateTracker):
         result = self.add_file_existence(newNode)
         if result is not None:
             f, c = result
-            self.remove_file_existence(newNode,True)
-            # TODO raise this error
+            self.remove_file_existence(newNode, True)
             # print('file exists: ',f,' and ',c,' names: ',self.name_by_node[f], ' and ', self.name_by_node[c],
             #       ' paths: ', self.get_path_of_file_node(f), ' and ', self.get_path_of_file_node(c))
-            # raise FileNameExistsError(self.get_path_of_file_node(f), self.name_by_node[f],
-            #                           self.file_type[f], self.file_type[c])
+            raise FileNameExistsError(self.get_path_of_file_node(c), self.name_by_node[c],
+                                      self.file_type[c])
 
         return []
 
@@ -596,7 +600,8 @@ class StateTrackerFB(StateTracker):
         triplets = []
         for n in self.file_exists:
             if n != self.root:
-                triplets += [(n, onto.rdf_type, self.file_type[n]), (n, fbrowser.has_name, Literal(self.name_by_node[n])),
+                triplets += [(n, onto.rdf_type, self.file_type[n]),
+                             (n, fbrowser.has_name, Literal(self.name_by_node[n])),
                              (self.parent[n], fbrowser.contains_file, n)]
         return triplets
 
@@ -640,16 +645,12 @@ class StateTrackerFB(StateTracker):
                 if c not in self.name_by_node:
                     continue
                 if c != file_node and self.name_by_node[c] == self.name_by_node[file_node] \
-                        and c in self.file_exists and self.file_type[file_node] == self.file_type[c]:
+                        and c in self.file_exists:  # and self.file_type[file_node] == self.file_type[c]:
                     if first:
                         return file_node, c
                     else:
                         return [c]
-                        # if not self.set_file_in_inner_state(file_node,c):
-                        #     return (file_node, c)
-                        # p = c
-                        # break
-            # if p not in self.file_exists:
+
             result = self.add_file_existence(p, False)
             if result is not None:
                 if len(result) == 2:
@@ -661,7 +662,7 @@ class StateTrackerFB(StateTracker):
 
     def remove_file_existence(self, file_node, from_all=False, rm_from_parent=True):
         if self.has_ancestor(self.current_path_node, file_node):
-            raise RemoveCurrentDirError('removing directory containing current path')
+            raise RemoveCurrentDirError(self.name_by_node[file_node], file_node != self.current_path_node)
         if file_node in self.file_exists:
             self.file_exists.remove(file_node)
         if file_node in self.children:
@@ -760,7 +761,6 @@ class StateTrackerFB(StateTracker):
             if s == self.root:
                 return False
             s = self.parent[s]
-
 
     def set_file_in_inner_state(self, s, parent=None):
         if parent is None:

@@ -4,7 +4,7 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 import math
 
-from DialogueManager.FileBrowserDM.errors import RemoveCurrentDirError
+from DialogueManager.FileBrowserDM.errors import DialogueError
 from DialogueManager.state_tracker import StateTracker
 from keras.layers import Input, GRU, CuDNNGRU, Dense, Concatenate, TimeDistributed, RepeatVector, Lambda, Masking, \
     Conv1D, Flatten, Reshape, MaxPooling1D, LSTMCell
@@ -221,9 +221,8 @@ class Agent(object):
             self.graph_encoding = self.state_tracker.get_encoded_state()
         try:
             self.state_tracker.update_state_agent_action(action, update_encoding=self.use_graph_encoder)
-        except RemoveCurrentDirError as e:
-            # print('Remove Current file error')
-            return action_index, {'intent': 'inform', 'error': e}
+        except DialogueError as e:
+            return action_index, {'intent': 'inform', 'error': e, 'required_reward': e.reward}
         return action_index, action
 
     def get_action(self, states=None):
