@@ -20,6 +20,7 @@ class ErrorModelController:
         self.slot_error_mode = constants['emc']['slot_error_mode']  # [0, 3]
         self.intent_error_prob = constants['emc']['intent_error_prob']
         self.intents = UserSimulatorFB.usersim_intents
+        # self.intents.remove(UserSimulatorFB.u_request)
         requirements = IntentTracker.intents_requirements
         self.intent_slots_map = dict((key, [k for k in requirements[key]])
                                      for key in requirements)

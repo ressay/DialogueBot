@@ -179,7 +179,9 @@ class StateTrackerFB(StateTracker):
     # TODO OPTIONAL ADD_USER_ACTION NODES
     def request_triplets_u(self, user_action):
         triplets = []
-        if user_action['slot'] == 'directory':
+        # when nlu does an error on intent, the slot value is generated automatically since we have just one slot
+        # so for now, we enter directly if an error happens with user sim and slot is not in the dict
+        if 'slot' not in user_action or user_action['slot'] == 'directory':
             self.action_tracker.set_current_action(user_action)
             triplets.append((fbrowser.User, fbrowser.has_desire, fbrowser.A_inform))
             for key in self.inform_slots:
