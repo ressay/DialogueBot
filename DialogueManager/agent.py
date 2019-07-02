@@ -111,6 +111,7 @@ class Agent(object):
                                     # reset_after=True,
                                     name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
 
+
         def DQN_unit(layers, hidden):
             DQN_input = Input(shape=(action_size + hidden,))
             output = Dense(layers[0], activation='relu')(DQN_input)
