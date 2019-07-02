@@ -359,7 +359,7 @@ class FileTreeSimulator(object):
             tree_sim = m['tree_sim']
         else:
             tree_sim = self
-            if old_name == self.name:
+            if old_name == self.name and self.equal_paths(path, ''):
                 self.name = new_name
                 return
         f, m = tree_sim.get_file_by_name(old_name)

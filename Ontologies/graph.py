@@ -58,6 +58,7 @@ class Graph(object):
         """
 
         self.triplets = list(triplets)
+        self.triplets.sort()
         for s,p,o in self.triplets:
             self.add_triplet(s,p,o)
         # print(self.triplets)

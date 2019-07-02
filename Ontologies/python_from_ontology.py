@@ -4,7 +4,7 @@ import os
 from rdflib import Graph,RDFS,RDF,OWL
 from itertools import chain
 
-owl_class = OWL.term('Class')#URIRef(owl_prefix+'Class')
+owl_class = OWL.term('Class')
 owl_obj_property = OWL.term('ObjectProperty')
 owl_data_property = OWL.term('DatatypeProperty')
 rdf_type = RDF.term('type')

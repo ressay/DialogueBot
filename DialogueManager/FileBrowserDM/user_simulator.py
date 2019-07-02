@@ -188,11 +188,11 @@ class UserSimulatorFB(UserSimulator):
             return reward
         f, t = self.state['current_similarity']
         pf, pt = self.state['previous_similarity']
-        if f / t > pf / pt:  # tree similarity got better
+        if t != 0 and f / t > pf / pt:  # tree similarity got better
             if 'improved' in self.rewards:
                 return self.rewards['improved']
             return 2
-        elif f / t < pf / pt:
+        elif t == 0 or f / t < pf / pt:
             if f < pf:
                 if 'nimprovedf' in self.rewards:
                     return self.rewards['nimprovedf']
@@ -204,11 +204,11 @@ class UserSimulatorFB(UserSimulator):
         if self.state['current_uAction']['intent'] == self.confirm:
             if 'confirm' in self.rewards:
                 return self.rewards['confirm']
-            return 0
+            return 0.25
         if self.state['current_uAction']['intent'] == self.deny:
             if 'deny' in self.rewards:
                 return self.rewards['deny']
-            return -0.5
+            return -0.25
 
         if 'other' in self.rewards:
             return self.rewards['other']
@@ -681,7 +681,7 @@ class UserSimulatorFB(UserSimulator):
             pf, pt = self.state['current_similarity']
             # file_sim_copy.print_tree()
             # print('DEBUG ASK: COPY:',f,t,' CURRENT SIM: ',pf,pt)
-            if f / t > pf / pt:
+            if t != 0 and f / t > pf / pt:
                 return {'intent': self.confirm}
         # elif asked_action['intent'] == 'Change_directory':
         #     if not self.sub_goal_exists():
