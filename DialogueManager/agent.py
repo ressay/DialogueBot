@@ -154,7 +154,7 @@ class Agent(object):
             model = Model([encoded_state_input, DQN_inputs], outputs)
         else:
             model = Model([encoder_inputs, encoder_state_input, DQN_inputs], outputs)
-        model.compile('rmsprop', loss='mse')
+        model.compile('sgd', loss='mse')
         # model.summary()
         return model
 
