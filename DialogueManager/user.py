@@ -108,7 +108,7 @@ class UserHuman(object):
 
         with open(constants_file) as f:
             constants = json.load(f)
-            constants['agent']['load_weights_file_path'] = 'FileBrowserDM/my_weights/m3.h5'
+            constants['agent']['load_weights_file_path'] = 'FileBrowserDM/my_weights/m50.h5'
         compress = True
         train_batch = True
         use_encoder = False
@@ -162,31 +162,6 @@ class UserHuman(object):
             print(nlg_sys.get_sentence(agent_action))
             response = self.return_response(agent_action)
             self.dqn_agent.update_state_user_action(response)
-# (52, 1, 15) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#root_directory'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (52, 8, 53) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#root_directory'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('Simulation'))
-# (54, 1, 15) (rdflib.term.BNode('N556b3224547540ebbbe1f3a02cb79d00'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (54, 8, 55) (rdflib.term.BNode('N556b3224547540ebbbe1f3a02cb79d00'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('downloads'))
-# (52, 9, 54) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#root_directory'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('N556b3224547540ebbbe1f3a02cb79d00'))
-# (56, 1, 15) (rdflib.term.BNode('N29756c31b9d94b139e1149126d0f45d2'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (56, 8, 57) (rdflib.term.BNode('N29756c31b9d94b139e1149126d0f45d2'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('home'))
-# (52, 9, 56) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#root_directory'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('N29756c31b9d94b139e1149126d0f45d2'))
-# (58, 1, 15) (rdflib.term.BNode('Nfd9b3ec02aeb448b8c13651b67d487f8'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (58, 8, 59) (rdflib.term.BNode('Nfd9b3ec02aeb448b8c13651b67d487f8'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('studies'))
-# (52, 9, 58) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#root_directory'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('Nfd9b3ec02aeb448b8c13651b67d487f8'))
-# (60, 1, 15) (rdflib.term.BNode('N0c26d89951a24347be06f9b0e145c944'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (60, 8, 61) (rdflib.term.BNode('N0c26d89951a24347be06f9b0e145c944'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('Second'))
-# (58, 9, 60) (rdflib.term.BNode('Nfd9b3ec02aeb448b8c13651b67d487f8'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('N0c26d89951a24347be06f9b0e145c944'))
-# (62, 1, 15) (rdflib.term.BNode('Nfbb827a33bf648b498e10a8cd83dbb4b'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (62, 8, 63) (rdflib.term.BNode('Nfbb827a33bf648b498e10a8cd83dbb4b'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('First'))
-# (58, 9, 62) (rdflib.term.BNode('Nfd9b3ec02aeb448b8c13651b67d487f8'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('Nfbb827a33bf648b498e10a8cd83dbb4b'))
-# (64, 1, 15) (rdflib.term.BNode('N0c26536538264068bf0b26cd1f466b8e'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (64, 8, 65) (rdflib.term.BNode('N0c26536538264068bf0b26cd1f466b8e'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('work'))
-# (52, 9, 64) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#root_directory'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('N0c26536538264068bf0b26cd1f466b8e'))
-# (66, 1, 15) (rdflib.term.BNode('Nf9682245b79543e48769b86985fcf8bc'), rdflib.term.URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Directory'))
-# (66, 8, 67) (rdflib.term.BNode('Nf9682245b79543e48769b86985fcf8bc'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_name'), rdflib.term.Literal('Dialogue Manager'))
-# (64, 9, 66) (rdflib.term.BNode('N0c26536538264068bf0b26cd1f466b8e'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#contains_file'), rdflib.term.BNode('Nf9682245b79543e48769b86985fcf8bc'))
-# (6, 10, 41) (rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#User'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#has_desire'), rdflib.term.URIRef('http://www.semanticweb.org/ressay/ontologies/2019/2/untitled-ontology-7#Open_file'))
-
 
 if __name__ == '__main__':
 

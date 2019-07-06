@@ -109,7 +109,7 @@ class StateTrackerFB(StateTracker):
 
         if self.action_tracker.has_intent():
             actions = self.action_tracker.get_possible_actions()
-        actions.append(self.default_action)
+        actions.append(self.default_action.copy())
         for a in actions:
             a['ask_nodes'] = (a['action_node'], a['file_node'])
         action_nodes = [(m['action_node'], m['file_node']) for m in actions]
@@ -330,22 +330,6 @@ class StateTrackerFB(StateTracker):
                 triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
                 triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
         return triplets
-        if 'origin' in user_action:
-            user_action['parent_directory'] = user_action['origin']
-        file_nodes = self.get_files_from_graph(user_action)
-        if file_nodes is None:
-            name = None if 'file_name' not in user_action else user_action['file_name']
-            self.special_actions.append({'intent': 'request', 'slot': 'file_name',
-                                         'file_node': desire, 'action_node': fbrowser.A_request,
-                                         'special': 'file_not_found' if 'file_name' in user_action else 'file_name',
-                                         'special_file_name': name})
-            triplets.append((fbrowser.User, fbrowser.u_acted, desire))
-            return triplets
-        for file_node in file_nodes:
-            triplets.append((fbrowser.User, desire, file_node))
-            self.add_to_special_candidate(file_node, desire, user_action)
-
-        return triplets
 
     def agent_actions_desire_triplets_u(self, user_action):
         triplets = []
@@ -361,53 +345,6 @@ class StateTrackerFB(StateTracker):
             if key in user_action:
                 triplets.append((fbrowser.User, fbrowser.U_inform, self.inform_slots[key]))
                 triplets.append((self.inform_slots[key], fbrowser.has_parameter, Literal(user_action[key])))
-        return triplets
-        if file_type is None:
-            file_type = fbrowser.File if 'is_file' not in user_action \
-                else fbrowser.Directory if not user_action['is_file'] else fbrowser.RegFile
-        if desire == fbrowser.Change_directory:
-            if 'directory' in user_action:
-                user_action['file_name'] = user_action['directory']
-        file_nodes = self.get_files_from_graph(user_action)
-        # TODO Fix file name when delete intent
-        # self.special_actions
-
-        if desire == fbrowser.Create_file:
-            file_node = BNode()
-            triplets.append((file_node, onto.rdf_type, file_type))
-            if 'file_name' in user_action:
-                triplets.append((file_node, fbrowser.has_name, Literal(user_action['file_name'])))
-            if 'parent_directory' in user_action:
-                parent_dirs = self.get_files_from_graph({'file_name': user_action['parent_directory']})
-                # if parent_dirs is None:
-                #     parent_dir = BNode()
-                #     triplets.append((parent_dir, onto.rdf_type, fbrowser.Directory))
-                #     triplets.append((parent_dir, fbrowser.has_name, Literal(user_action['parent_directory'])))
-                #     triplets.append((parent_dir, fbrowser.contains_file, file_node))
-                # else:
-                if parent_dirs is not None:
-                    for parent_dir in parent_dirs:
-                        if self.file_type[parent_dir] == fbrowser.Directory:
-                            triplets.append((parent_dir, fbrowser.contains_file, file_node))
-            triplets.append((fbrowser.User, desire, file_node))
-            return triplets
-        # if delete or change directory and file not found, special action to re ask for file name
-        elif file_nodes is None:
-            name = None if 'file_name' not in user_action else user_action['file_name']
-            self.special_actions.append({'intent': 'request', 'slot': 'file_name',
-                                         'file_node': desire, 'action_node': fbrowser.A_request,
-                                         'special': 'file_not_found' if 'file_name' in user_action else 'file_name',
-                                         'special_file_name': name})
-            triplets.append((fbrowser.User, fbrowser.u_acted, desire))
-            return triplets
-
-        for file_node in file_nodes:
-            triplets.append((fbrowser.User, desire, file_node))
-        if len(file_nodes) > 1:
-            self.special_actions.append({'intent': 'request', 'slot': 'parent_directory',
-                                         'file_name': user_action['file_name'],
-                                         'file_node': desire, 'action_node': fbrowser.A_request,
-                                         'special': 'multiple_file_found'})
         return triplets
 
     ################ AGENT ACTION TRIPLETS
@@ -440,6 +377,8 @@ class StateTrackerFB(StateTracker):
 
     def open_triplets_a(self, agent_action):
         triplets = []
+        if self.file_type[agent_action['file_node']] == fbrowser.Directory:
+            return self.change_directory_triplets_a(agent_action)
         triplets.append((fbrowser.Agent, fbrowser.a_acted, fbrowser.Open_file))
         return triplets
 
