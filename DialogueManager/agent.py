@@ -105,12 +105,11 @@ class Agent(object):
         encoder_state_input = Input(shape=(hidden_state,), name='encoder_state_input' + name_pre)
         # DQN_input = Input(shape=(triplet_size,))
         DQN_inputs = Input(shape=(None, action_size), name='dqn_inputs' + name_pre)
-        _, encoder_state = CuDNNGRU(hidden_state,
-                                    return_state=True,
-                                    return_sequences=False,
-                                    # reset_after=True,
-                                    name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
-
+        _, encoder_state = GRU(hidden_state,
+                               return_state=True,
+                               return_sequences=False,
+                               reset_after=True,
+                               name='gru_layer' + name_pre)(encoder_inputs, initial_state=encoder_state_input)
 
         def DQN_unit(layers, hidden):
             DQN_input = Input(shape=(action_size + hidden,))

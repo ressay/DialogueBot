@@ -209,7 +209,8 @@ class UserSimulatorFB(UserSimulator):
             if 'deny' in self.rewards:
                 return self.rewards['deny']
             return -0.5
-
+        if agent_action['intent'] == 'default':
+            return -1.5
         if 'other' in self.rewards:
             return self.rewards['other']
         return -1
