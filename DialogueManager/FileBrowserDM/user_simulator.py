@@ -209,8 +209,6 @@ class UserSimulatorFB(UserSimulator):
             if 'deny' in self.rewards:
                 return self.rewards['deny']
             return -0.5
-        if agent_action['intent'] == 'default':
-            return -1.5
         if 'other' in self.rewards:
             return self.rewards['other']
         return -1
@@ -396,7 +394,7 @@ class UserSimulatorFB(UserSimulator):
 
     def generate_sub_goal_intent(self):
         sub_goal = self.next_sub_goal()
-        pF = 0.5
+        pF = 0.4
         if sub_goal['name'] == 'Change_directory':
             assert self.state['current_directory'] != sub_goal['dirs'][-1], 'sub goal already reached'
             dirs = sub_goal['dirs']
@@ -404,27 +402,27 @@ class UserSimulatorFB(UserSimulator):
             directory = dirs[index].split('/')[-1]
             return self.create_change_dir_desire(directory)
         elif sub_goal['name'] == 'Search_file':
-            if random.random() < pF:
+            if random.random() < 0.4:
                 return {'intent': self.u_request, 'slot': 'directory', 'file_name': sub_goal['file']}
             return {'intent': self.u_request, 'slot': 'directory'}
         elif sub_goal['name'] == 'Open_file':
             action = {'intent': self.Open_file_desire}
-            if random.random() < pF:
+            if random.random() < 0.4:
                 action['file_name'] = sub_goal['file']
             if random.random() < pF:
                 action['parent_directory'] = sub_goal['parent_directory']
             return action
         elif sub_goal['name'] == 'Rename_file':
             action = {'intent': self.Rename_file_desire}
-            if random.random() < pF:
+            if random.random() < 0.3:
                 action['old_name'] = sub_goal['old_name']
-            if random.random() < pF:
+            if random.random() < 0.3:
                 action['new_name'] = sub_goal['new_name']
-            if random.random() < pF:
+            if random.random() < 0.3:
                 action['parent_directory'] = sub_goal['parent_directory']
             return action
         elif sub_goal['name'] == 'Move_file' or sub_goal['name'] == 'Copy_file':
-            pO, pD, pF = 0.2, 0.4, 0.8
+            pO, pD, pF = 0.2, 0.4, 0.4
             action = {'intent': (self.Move_file_desire if sub_goal['name'] == 'Move_file' else self.Copy_file_desire)}
             if random.uniform(0, 1) < pO:
                 action['origin'] = FileTreeSimulator.last_dir_in_path(sub_goal['origin'])
@@ -574,9 +572,9 @@ class UserSimulatorFB(UserSimulator):
         generate an action related to tree creation
         :return (dict): the generated action
         """
-        proba_file = 0.8 if 'proba_file' not in self.probas else self.probas['proba_file']
-        proba_parent = 0.6 if 'proba_parent' not in self.probas else self.probas['proba_parent']
-        proba_change_dir = 0.4 if 'proba_change_dir' not in self.probas else self.probas['proba_change_dir']
+        proba_file = 0.6 if 'proba_file' not in self.probas else self.probas['proba_file']
+        proba_parent = 0.3 if 'proba_parent' not in self.probas else self.probas['proba_parent']
+        proba_change_dir = 0.2 if 'proba_change_dir' not in self.probas else self.probas['proba_change_dir']
 
         def next_dir(origin, destination):
             """
